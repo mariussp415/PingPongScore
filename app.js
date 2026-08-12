@@ -12,6 +12,7 @@ let history = [];
 
 let listening = false;
 let matchFinished = false;
+let speakingScore = false;
 
 let recognition = null;
 let wakeLock = null;
@@ -64,6 +65,82 @@ function addPoint(player) {
   }
 
   playScoreSound();
+  function speakScore() {
+
+  if (!("speechSynthesis" in window)) {
+    return;
+  }
+
+  speakingScore = true;
+
+  // Stopp mikrofonen mens telefonen snakker
+  if (recognition) {
+    try {
+      recognition.abort();
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  // Fjern eventuell gammel tale
+  window.speechSynthesis.cancel();
+
+  const utterance =
+    new SpeechSynthesisUtterance(
+      `${score1} til ${score2}`
+    );
+
+  utterance.lang = "nb-NO";
+
+  // Litt raskere enn vanlig tale
+  utterance.rate = 1.25;
+
+  utterance.volume = 0.9;
+
+
+  utterance.onend = function () {
+
+    speakingScore = false;
+
+    // Start mikrofonen igjen
+    if (listening && !matchFinished) {
+
+      setTimeout(() => {
+
+        try {
+          recognition.start();
+        } catch (error) {
+          console.log(error);
+        }
+
+      }, 200);
+    }
+  };
+
+
+  utterance.onerror = function () {
+
+    speakingScore = false;
+
+    if (listening && !matchFinished) {
+
+      setTimeout(() => {
+
+        try {
+          recognition.start();
+        } catch (error) {
+          console.log(error);
+        }
+
+      }, 200);
+    }
+  };
+
+
+  window.speechSynthesis.speak(
+    utterance
+  );
+}
   flashScore();
 
   checkSetWinner();
@@ -487,6 +564,7 @@ function setScoreFromVoice(
   // Bekreftelse
   playScoreSound();
   flashScore();
+  speakScore();
 
 
   status.textContent =
@@ -898,6 +976,7 @@ if (!SpeechRecognition) {
       if (
         listening &&
         !matchFinished
+         !speakingScore
       ) {
 
         setTimeout(() => {
