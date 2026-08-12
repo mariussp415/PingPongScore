@@ -2,118 +2,343 @@
   box-sizing: border-box;
 }
 
+html,
 body {
   margin: 0;
-  min-height: 100vh;
+  width: 100%;
+  height: 100%;
+}
+
+body {
   background: #0b0d10;
   color: white;
   font-family: Arial, Helvetica, sans-serif;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+
+  overflow: hidden;
 }
 
 .app {
   width: 100%;
   max-width: 520px;
-  min-height: 100vh;
-  padding: 24px 18px 32px;
+
+  height: 100dvh;
+
+  margin: 0 auto;
+
+  padding:
+    max(10px, env(safe-area-inset-top))
+    14px
+    max(10px, env(safe-area-inset-bottom));
+
   display: flex;
   flex-direction: column;
+
+  gap: 8px;
+}
+
+
+/* ---------------------
+   TOPP
+--------------------- */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+
+  min-height: 38px;
 }
 
 h1 {
-  margin: 8px 0 18px;
-  text-align: center;
-  font-size: 28px;
+  margin: 0;
+
+  font-size: 22px;
 }
 
-.sets {
-  text-align: center;
-  font-size: 18px;
-  opacity: 0.8;
-  margin-bottom: 22px;
+.match-setting {
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+
+  font-size: 12px;
+
+  opacity: 0.9;
 }
+
+.match-setting select {
+  background: #20242b;
+  color: white;
+
+  border: none;
+  border-radius: 8px;
+
+  padding: 6px 8px;
+}
+
+
+/* ---------------------
+   NAVN
+--------------------- */
+
+.name-row {
+  display: flex;
+  align-items: center;
+
+  gap: 8px;
+}
+
+.name-row input {
+  flex: 1;
+
+  min-width: 0;
+
+  background: #171a20;
+  color: white;
+
+  border: 1px solid #2b3038;
+  border-radius: 10px;
+
+  text-align: center;
+
+  padding: 7px;
+
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.vs {
+  font-size: 11px;
+
+  opacity: 0.4;
+}
+
+
+/* ---------------------
+   SETT
+--------------------- */
+
+.sets {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  gap: 8px;
+
+  min-height: 24px;
+
+  font-size: 14px;
+
+  opacity: 0.9;
+}
+
+.sets strong {
+  font-size: 20px;
+}
+
+
+/* ---------------------
+   SETTHISTORIKK
+--------------------- */
+
+.set-history {
+  width: 100%;
+
+  min-height: 31px;
+
+  display: flex;
+  align-items: center;
+
+  gap: 6px;
+
+  overflow-x: auto;
+
+  scrollbar-width: none;
+}
+
+.set-history::-webkit-scrollbar {
+  display: none;
+}
+
+.history-empty {
+  width: 100%;
+
+  text-align: center;
+
+  font-size: 11px;
+
+  opacity: 0.35;
+}
+
+.set-chip {
+  flex-shrink: 0;
+
+  background: #20242b;
+
+  border-radius: 9px;
+
+  padding: 6px 9px;
+
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.set-chip strong {
+  margin-left: 3px;
+}
+
+
+/* ---------------------
+   SCORE
+--------------------- */
 
 .scoreboard {
   flex: 1;
+
+  min-height: 0;
+
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 18px;
+
+  gap: 12px;
 }
 
 .player {
   flex: 1;
+
   text-align: center;
 }
 
 .player p {
-  margin: 0 0 8px;
-  font-size: 16px;
-  opacity: 0.7;
+  margin: 0 0 3px;
+
+  font-size: 13px;
+
+  opacity: 0.55;
 }
 
 .score {
-  font-size: clamp(90px, 27vw, 150px);
-  line-height: 1;
+  font-size: clamp(72px, 24vw, 125px);
+
+  line-height: 0.95;
+
   font-weight: 800;
-  letter-spacing: -6px;
+
+  letter-spacing: -5px;
 }
 
 .divider {
-  font-size: 55px;
-  opacity: 0.4;
+  font-size: 42px;
+
+  opacity: 0.3;
 }
 
-.player button {
-  width: 72px;
-  height: 52px;
-  margin-top: 20px;
+.point-button {
+  width: 58px;
+  height: 38px;
+
+  margin-top: 8px;
+
   border: none;
-  border-radius: 16px;
-  font-size: 28px;
-  font-weight: bold;
-  background: #23272f;
+  border-radius: 11px;
+
+  background: #20242b;
   color: white;
+
+  font-size: 23px;
+  font-weight: bold;
 }
+
+
+/* ---------------------
+   MIKROFON
+--------------------- */
 
 .listen-button {
   width: 100%;
+
   border: none;
-  border-radius: 18px;
-  padding: 18px;
-  font-size: 20px;
-  font-weight: bold;
-  background: #f4f4f4;
+  border-radius: 14px;
+
+  padding: 13px;
+
+  background: white;
   color: #111;
-  margin-top: 18px;
+
+  font-size: 17px;
+  font-weight: bold;
 }
 
+
+/* ---------------------
+   STATUS
+--------------------- */
+
 #status {
-  min-height: 50px;
+  margin: 0;
+
+  min-height: 25px;
+
   text-align: center;
-  margin: 14px 0 4px;
-  font-size: 15px;
-  opacity: 0.75;
+
+  font-size: 12px;
+
+  opacity: 0.65;
 }
+
+
+/* ---------------------
+   KNAPPER
+--------------------- */
 
 .controls {
   display: flex;
-  gap: 12px;
-  margin-top: 14px;
+
+  gap: 8px;
 }
 
 .controls button {
   flex: 1;
+
   border: none;
-  border-radius: 15px;
-  padding: 14px 10px;
-  font-size: 16px;
-  background: #23272f;
+  border-radius: 12px;
+
+  padding: 11px;
+
+  background: #20242b;
   color: white;
+
+  font-size: 14px;
 }
 
 button:active {
   transform: scale(0.97);
+}
+
+
+/* ---------------------
+   SCORE-BLINK
+--------------------- */
+
+.score-flash {
+  animation: scoreFlash 0.3s ease;
+}
+
+@keyframes scoreFlash {
+
+  0% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
+
+  50% {
+    transform: scale(1.025);
+    filter: brightness(2);
+  }
+
+  100% {
+    transform: scale(1);
+    filter: brightness(1);
+  }
 }

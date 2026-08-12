@@ -10,7 +10,6 @@
 
   <meta name="theme-color" content="#0b0d10">
 
-  <!-- Gjør den mer app-aktig på iPhone -->
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta
     name="apple-mobile-web-app-status-bar-style"
@@ -20,67 +19,130 @@
 
   <title>PingScore</title>
 
-  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="style.css?v=10">
 </head>
 
 <body>
 
   <main class="app">
 
-    <!-- TITTEL -->
-    <h1>🏓 PingScore</h1>
+    <header class="topbar">
+      <h1>🏓 PingScore</h1>
+
+      <div class="match-setting">
+        <label for="setsToWin">Først til</label>
+
+        <select id="setsToWin">
+          <option value="3">3 sett</option>
+          <option value="4">4 sett</option>
+          <option value="5" selected>5 sett</option>
+        </select>
+      </div>
+    </header>
+
+
+    <!-- SPILLERNAVN -->
+    <div class="name-row">
+
+      <input
+        id="player1NameInput"
+        type="text"
+        value="Marius"
+        maxlength="15"
+      >
+
+      <span class="vs">VS</span>
+
+      <input
+        id="player2NameInput"
+        type="text"
+        value="Petter"
+        maxlength="15"
+      >
+
+    </div>
+
 
     <!-- SETT -->
     <div class="sets">
-      Sett:
-      <span id="sets1">0</span>
+      <span id="player1Label">Marius</span>
+
+      <strong id="sets1">0</strong>
+
       <span>–</span>
-      <span id="sets2">0</span>
+
+      <strong id="sets2">0</strong>
+
+      <span id="player2Label">Petter</span>
     </div>
+
+
+    <!-- SETTHISTORIKK -->
+    <div
+      id="setHistory"
+      class="set-history"
+    >
+      <span class="history-empty">
+        Ingen sett ferdig ennå
+      </span>
+    </div>
+
 
     <!-- SCORE -->
     <div class="scoreboard">
 
-      <!-- SPILLER 1 -->
       <div class="player">
-        <p>Spiller 1</p>
 
-        <div id="score1" class="score">
+        <p id="scorePlayer1Name">
+          Marius
+        </p>
+
+        <div
+          id="score1"
+          class="score"
+        >
           0
         </div>
 
         <button
           class="point-button"
           onclick="addPoint(1)"
-          aria-label="Poeng til spiller 1"
         >
           +
         </button>
+
       </div>
 
-      <!-- SKILLE -->
+
       <div class="divider">
         –
       </div>
 
-      <!-- SPILLER 2 -->
-      <div class="player">
-        <p>Spiller 2</p>
 
-        <div id="score2" class="score">
+      <div class="player">
+
+        <p id="scorePlayer2Name">
+          Petter
+        </p>
+
+        <div
+          id="score2"
+          class="score"
+        >
           0
         </div>
 
         <button
           class="point-button"
           onclick="addPoint(2)"
-          aria-label="Poeng til spiller 2"
         >
           +
         </button>
+
       </div>
 
     </div>
+
 
     <!-- MIKROFON -->
     <button
@@ -90,12 +152,12 @@
       🎙️ Start lytting
     </button>
 
-    <!-- STATUS / HVA DEN HØRTE -->
+
     <p id="status">
-      Si stillingen, for eksempel «tre to»
+      Si scoren, f.eks. «tre to»
     </p>
 
-    <!-- KONTROLLER -->
+
     <div class="controls">
 
       <button onclick="undo()">
@@ -110,8 +172,8 @@
 
   </main>
 
- <link rel="stylesheet" href="style.css?v=5">
-<script src="app.js?v=9"></script>
+
+  <script src="app.js?v=10"></script>
 
 </body>
 </html>
