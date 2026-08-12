@@ -1,39 +1,117 @@
-<main class="app">
-  <h1>🏓 PingScore</h1>
+<!DOCTYPE html>
+<html lang="no">
+<head>
+  <meta charset="UTF-8">
 
-  <div class="sets">
-    Sett:
-    <span id="sets1">0</span>
-    –
-    <span id="sets2">0</span>
-  </div>
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+  >
 
-  <div class="scoreboard">
-    <div class="player">
-      <p>Spiller 1</p>
-      <div id="score1" class="score">0</div>
-      <button onclick="addPoint(1)">+</button>
+  <meta name="theme-color" content="#0b0d10">
+
+  <!-- Gjør den mer app-aktig på iPhone -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta
+    name="apple-mobile-web-app-status-bar-style"
+    content="black-translucent"
+  >
+  <meta name="apple-mobile-web-app-title" content="PingScore">
+
+  <title>PingScore</title>
+
+  <link rel="stylesheet" href="style.css?v=4">
+</head>
+
+<body>
+
+  <main class="app">
+
+    <!-- TITTEL -->
+    <h1>🏓 PingScore</h1>
+
+    <!-- SETT -->
+    <div class="sets">
+      Sett:
+      <span id="sets1">0</span>
+      <span>–</span>
+      <span id="sets2">0</span>
     </div>
 
-    <div class="divider">–</div>
+    <!-- SCORE -->
+    <div class="scoreboard">
 
-    <div class="player">
-      <p>Spiller 2</p>
-      <div id="score2" class="score">0</div>
-      <button onclick="addPoint(2)">+</button>
+      <!-- SPILLER 1 -->
+      <div class="player">
+        <p>Spiller 1</p>
+
+        <div id="score1" class="score">
+          0
+        </div>
+
+        <button
+          class="point-button"
+          onclick="addPoint(1)"
+          aria-label="Poeng til spiller 1"
+        >
+          +
+        </button>
+      </div>
+
+      <!-- SKILLE -->
+      <div class="divider">
+        –
+      </div>
+
+      <!-- SPILLER 2 -->
+      <div class="player">
+        <p>Spiller 2</p>
+
+        <div id="score2" class="score">
+          0
+        </div>
+
+        <button
+          class="point-button"
+          onclick="addPoint(2)"
+          aria-label="Poeng til spiller 2"
+        >
+          +
+        </button>
+      </div>
+
     </div>
-  </div>
 
-  <button id="listenButton" class="listen-button">
-    🎙️ Start lytting
-  </button>
+    <!-- MIKROFON -->
+    <button
+      id="listenButton"
+      class="listen-button"
+    >
+      🎙️ Start lytting
+    </button>
 
-  <p id="status">
-    Si stillingen, for eksempel «tre to»
-  </p>
+    <!-- STATUS / HVA DEN HØRTE -->
+    <p id="status">
+      Si stillingen, for eksempel «tre to»
+    </p>
 
-  <div class="controls">
-    <button onclick="undo()">↶ Angre</button>
-    <button onclick="resetGame()">Ny kamp</button>
-  </div>
-</main>
+    <!-- KONTROLLER -->
+    <div class="controls">
+
+      <button onclick="undo()">
+        ↶ Angre
+      </button>
+
+      <button onclick="resetGame()">
+        Ny kamp
+      </button>
+
+    </div>
+
+  </main>
+
+  <!-- ?v=4 tvinger iPhone til å hente nyeste kode -->
+  <script src="app.js?v=4"></script>
+
+</body>
+</html>
