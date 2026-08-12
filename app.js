@@ -72,13 +72,35 @@ function addPoint(player) {
 
 
 // =====================================================
+// FINN OM NOEN AKKURAT VANT SETTET
+// =====================================================
+
+function getSetWinner() {
+  const difference = Math.abs(score1 - score2);
+
+  if (difference < 2) {
+    return null;
+  }
+
+  if (score1 >= 11 && score1 > score2) {
+    return 1;
+  }
+
+  if (score2 >= 11 && score2 > score1) {
+    return 2;
+  }
+
+  return null;
+}
+
+
+// =====================================================
 // SETT / KAMP
 // =====================================================
 
 function checkSetWinner() {
   const difference = Math.abs(score1 - score2);
 
-  // SPILLER 1 VINNER SETT
   if (score1 >= 11 && difference >= 2) {
     sets1++;
 
@@ -95,7 +117,6 @@ function checkSetWinner() {
     announceSetWinner(1);
   }
 
-  // SPILLER 2 VINNER SETT
   else if (score2 >= 11 && difference >= 2) {
     sets2++;
 
@@ -187,7 +208,9 @@ function resetGame() {
 
   matchFinished = false;
 
-  window.speechSynthesis?.cancel();
+  if ("speechSynthesis" in window) {
+    window.speechSynthesis.cancel();
+  }
 
   updateDisplay();
 
@@ -264,19 +287,16 @@ function wordToNumber(word) {
 
 function getPossibleScores() {
   return [
-    // Spiller 1 får poeng
     {
       player1: score1 + 1,
       player2: score2
     },
 
-    // Spiller 2 får poeng
     {
       player1: score1,
       player2: score2 + 1
     },
 
-    // Samme score
     {
       player1: score1,
       player2: score2
@@ -336,28 +356,9 @@ function parseNormalScore(text) {
 
 // =====================================================
 // SMART SCORE-TOLKING
-//
-// Eksempel:
-//
-// Du sier:
-// "to null"
-//
-// iPhone hører:
-// "20"
-//
-// Nåværende score:
-// 1-0
-//
-// Mulige neste scorer:
-// 2-0 → "20"
-// 1-1 → "11"
-//
-// Dermed vet PingScore:
-// "20" = 2-0
 // =====================================================
 
 function parseSmartScore(text) {
-  // Prøv vanlig parsing først
   const normalScore =
     parseNormalScore(text);
 
@@ -377,9 +378,6 @@ function parseSmartScore(text) {
   }
 
 
-  // Hvis iPhone har slått tallene sammen
-  // f.eks. "20", "31", "73"
-
   const cleaned =
     normalizeSpeech(text);
 
@@ -389,6 +387,7 @@ function parseSmartScore(text) {
   if (singleNumber === undefined) {
     return null;
   }
+
 
   const heardDigits =
     String(singleNumber);
@@ -406,6 +405,7 @@ function parseSmartScore(text) {
     }
   }
 
+
   return null;
 }
 
@@ -413,37 +413,21 @@ function parseSmartScore(text) {
 // =====================================================
 // SCORE FRA STEMME
 // =====================================================
-function getSetWinner() {
-  const difference = Math.abs(score1 - score2);
-
-  if (difference < 2) {
-    return null;
-  }
-
-  if (score1 >= 11 && score1 > score2) {
-    return 1;
-  }
-
-  if (score2 >= 11 && score2 > score1) {
-    return 2;
-  }
-
-  return null;
-}
-
-
 
 function setScoreFromVoice(
   newScore1,
   newScore2,
   heardText
 ) {
+
   if (matchFinished) {
     return;
   }
 
+
   const possibleScores =
     getPossibleScores();
+
 
   const valid =
     possibleScores.some(score =>
@@ -460,11 +444,12 @@ function setScoreFromVoice(
   }
 
 
-  // Samme score som før
+  // Samme score
   if (
     newScore1 === score1 &&
     newScore2 === score2
   ) {
+
     status.textContent =
       `👂 Hørte "${heardText}" – fortsatt ${score1}-${score2}`;
 
@@ -474,11 +459,11 @@ function setScoreFromVoice(
 
   saveHistory();
 
+
   score1 = newScore1;
   score2 = newScore2;
 
 
-  // Visuell / lyd-bekreftelse
   playScoreSound();
   flashScore();
 
@@ -487,17 +472,25 @@ function setScoreFromVoice(
     `👂 "${heardText}" → ✅ ${score1}-${score2}`;
 
 
-  // Si scoren høyt
-// Sjekk om dette poenget vant settet
-const setWinner = getSetWinner();
+  // Sjekk FØR checkSetWinner(),
+  // siden den nullstiller scoren etter settseier.
+  const setWinner =
+    getSetWinner();
 
-if (setWinner === 1) {
-  speakScore("Ouuufffff, kjipt ass!");
-} else {
-  speakScore();
-}
 
-checkSetWinner();
+  // Spiller 1 får litt trash talk 😎
+  if (setWinner === 1) {
+    speakScore(
+      "Åååååh, uff! Kjipt ass!"
+    );
+  }
+
+  else {
+    speakScore();
+  }
+
+
+  checkSetWinner();
 
   updateDisplay();
 }
@@ -545,29 +538,40 @@ function playScoreSound() {
       audioContext.resume();
     }
 
+
     const oscillator =
       audioContext.createOscillator();
 
     const gain =
       audioContext.createGain();
 
+
     oscillator.connect(gain);
-    gain.connect(audioContext.destination);
+
+    gain.connect(
+      audioContext.destination
+    );
+
 
     oscillator.frequency.value = 700;
+
     oscillator.type = "sine";
+
 
     gain.gain.setValueAtTime(
       0.10,
       audioContext.currentTime
     );
 
+
     gain.gain.exponentialRampToValueAtTime(
       0.001,
       audioContext.currentTime + 0.07
     );
 
+
     oscillator.start();
+
 
     oscillator.stop(
       audioContext.currentTime + 0.07
@@ -587,14 +591,16 @@ function playScoreSound() {
 // =====================================================
 
 function speakScore(extraText = "") {
-    if (!("speechSynthesis" in window)) {
+
+  if (!("speechSynthesis" in window)) {
     return;
   }
+
 
   speakingScore = true;
 
 
-  // Stopp mikrofonen så den ikke hører seg selv
+  // Stopp mikrofonen mens iPhone snakker
   if (recognition) {
     try {
       recognition.abort();
@@ -608,14 +614,22 @@ function speakScore(extraText = "") {
   window.speechSynthesis.cancel();
 
 
-  // Lag teksten FØR score eventuelt nullstilles
-  // etter settseier
+  // Lag teksten nå, før scoren eventuelt blir
+  // nullstilt av checkSetWinner()
   let spokenScore =
-  `${score1} til ${score2}`;
+    `${score1} til ${score2}`;
 
-if (extraText) {
-  spokenScore += `. ${extraText}`;
-}
+
+  if (extraText) {
+    spokenScore +=
+      `. ${extraText}`;
+  }
+
+
+  console.log(
+    "Telefonen sier:",
+    spokenScore
+  );
 
 
   const utterance =
@@ -627,12 +641,14 @@ if (extraText) {
   utterance.lang =
     "nb-NO";
 
-  // Litt raskere enn normal stemme
+
   utterance.rate =
-    1.25;
+    1.20;
+
 
   utterance.pitch =
     1;
+
 
   utterance.volume =
     1;
@@ -645,7 +661,7 @@ if (extraText) {
         false;
 
 
-      // Mikrofonen på igjen
+      // Start mikrofonen igjen etterpå
       if (
         listening &&
         !matchFinished
@@ -657,12 +673,12 @@ if (extraText) {
             recognition.start();
           } catch (error) {
             console.log(
-              "Kunne ikke starte mikrofon etter tale:",
+              "Kunne ikke starte mikrofon igjen:",
               error
             );
           }
 
-        }, 250);
+        }, 300);
       }
     };
 
@@ -674,6 +690,7 @@ if (extraText) {
         "Feil ved opplesning:",
         event
       );
+
 
       speakingScore =
         false;
@@ -692,7 +709,7 @@ if (extraText) {
             console.log(error);
           }
 
-        }, 250);
+        }, 300);
       }
     };
 
@@ -708,19 +725,23 @@ if (extraText) {
 // =====================================================
 
 function flashScore() {
+
   const scoreboard =
     document.querySelector(".scoreboard");
+
 
   if (!scoreboard) {
     return;
   }
 
+
   scoreboard.classList.remove(
     "score-flash"
   );
 
-  // Restart CSS-animasjonen
+
   void scoreboard.offsetWidth;
+
 
   scoreboard.classList.add(
     "score-flash"
@@ -733,7 +754,9 @@ function flashScore() {
 // =====================================================
 
 async function keepScreenAwake() {
+
   if (!("wakeLock" in navigator)) {
+
     console.log(
       "Wake Lock støttes ikke på denne enheten"
     );
@@ -741,17 +764,21 @@ async function keepScreenAwake() {
     return;
   }
 
+
   try {
+
     wakeLock =
       await navigator.wakeLock.request(
         "screen"
       );
+
 
     console.log(
       "🔆 Skjermen holdes våken"
     );
 
   } catch (error) {
+
     console.log(
       "Wake Lock kunne ikke aktiveres:",
       error
@@ -768,6 +795,7 @@ document.addEventListener(
       document.visibilityState === "visible" &&
       listening
     ) {
+
       keepScreenAwake();
     }
   }
@@ -784,12 +812,16 @@ const SpeechRecognition =
 
 
 if (!SpeechRecognition) {
+
   listenButton.disabled = true;
+
 
   status.textContent =
     "❌ Talegjenkjenning støttes ikke i denne nettleseren.";
 
-} else {
+}
+
+else {
 
   recognition =
     new SpeechRecognition();
@@ -811,9 +843,9 @@ if (!SpeechRecognition) {
     5;
 
 
-  // -----------------------------------------
-  // STARTET
-  // -----------------------------------------
+// =====================================================
+// LYTTING STARTER
+// =====================================================
 
   recognition.onstart =
     function () {
@@ -821,19 +853,21 @@ if (!SpeechRecognition) {
       listenButton.textContent =
         "🟢 Lytter...";
 
+
       status.textContent =
         "Si scoren, f.eks. «tre to»";
     };
 
 
-  // -----------------------------------------
-  // RESULTAT
-  // -----------------------------------------
+// =====================================================
+// RESULTAT
+// =====================================================
 
   recognition.onresult =
     function (event) {
 
-      // Ignorer alt mens telefonen snakker
+      // Ikke hør på iPhone mens
+      // den leser opp scoren
       if (speakingScore) {
         return;
       }
@@ -854,9 +888,6 @@ if (!SpeechRecognition) {
       let foundScore =
         null;
 
-
-      // Prøv flere forslag fra
-      // talegjenkjenningen
 
       for (
         let i = 0;
@@ -883,11 +914,14 @@ if (!SpeechRecognition) {
 
 
         if (parsed) {
+
           foundScore =
             parsed;
 
+
           heardText =
             transcript;
+
 
           break;
         }
@@ -901,6 +935,7 @@ if (!SpeechRecognition) {
 
 
       if (!foundScore) {
+
         status.textContent =
           `🤔 Hørte "${heardText}"`;
 
@@ -916,9 +951,9 @@ if (!SpeechRecognition) {
     };
 
 
-  // -----------------------------------------
-  // FEIL
-  // -----------------------------------------
+// =====================================================
+// FEIL
+// =====================================================
 
   recognition.onerror =
     function (event) {
@@ -937,8 +972,10 @@ if (!SpeechRecognition) {
         status.textContent =
           "❌ Mikrofontilgang mangler.";
 
+
         listening =
           false;
+
 
         listenButton.textContent =
           "🎙️ Start lytting";
@@ -961,9 +998,6 @@ if (!SpeechRecognition) {
         "aborted"
       ) {
 
-        // Helt normalt når vi stopper
-        // mikrofonen for å lese opp scoren
-
         console.log(
           "Talegjenkjenning midlertidig stoppet"
         );
@@ -978,28 +1012,19 @@ if (!SpeechRecognition) {
     };
 
 
-  // -----------------------------------------
-  // TALEGJENKJENNING STOPPET
-  // -----------------------------------------
+// =====================================================
+// LYTTING STOPPER
+// =====================================================
 
   recognition.onend =
     function () {
 
-      // Hvis telefonen akkurat nå leser
-      // opp scoren, skal vi IKKE starte
-      // mikrofonen her.
-      //
-      // speakScore() starter den igjen
-      // når stemmen er ferdig.
-
+      // speakScore starter mikrofonen selv
+      // når den er ferdig med å snakke.
       if (speakingScore) {
         return;
       }
 
-
-      // Safari stopper noen ganger
-      // talegjenkjenningen automatisk.
-      // Da starter vi den igjen.
 
       if (
         listening &&
@@ -1009,8 +1034,11 @@ if (!SpeechRecognition) {
         setTimeout(() => {
 
           try {
+
             recognition.start();
+
           } catch (error) {
+
             console.log(
               "Kunne ikke starte lytting igjen:",
               error
@@ -1019,7 +1047,9 @@ if (!SpeechRecognition) {
 
         }, 300);
 
-      } else {
+      }
+
+      else {
 
         listenButton.textContent =
           matchFinished
@@ -1029,15 +1059,14 @@ if (!SpeechRecognition) {
     };
 
 
-  // -----------------------------------------
-  // START / STOPP-KNAPP
-  // -----------------------------------------
+// =====================================================
+// START / STOPP-KNAPP
+// =====================================================
 
   listenButton.addEventListener(
     "click",
     async function () {
 
-      // Lås opp lyd på iPhone
       setupAudio();
 
 
@@ -1056,29 +1085,40 @@ if (!SpeechRecognition) {
 
 
         try {
+
           recognition.start();
+
         } catch (error) {
+
           console.log(
             "Kunne ikke starte:",
             error
           );
         }
 
-      } else {
+      }
+
+      else {
 
         listening =
           false;
+
 
         speakingScore =
           false;
 
 
-        window.speechSynthesis?.cancel();
+        if ("speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+        }
 
 
         try {
+
           recognition.stop();
+
         } catch (error) {
+
           console.log(error);
         }
 
@@ -1096,7 +1136,7 @@ if (!SpeechRecognition) {
 
 
 // =====================================================
-// START APPEN
+// START APP
 // =====================================================
 
 updateDisplay();
