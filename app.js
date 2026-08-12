@@ -67,6 +67,9 @@ function undo() {
   sets2 = previous.sets2;
 
   updateDisplay();
+
+  document.getElementById("status").textContent =
+    `↶ Tilbake til ${score1}-${score2}`;
 }
 
 function resetGame() {
@@ -79,7 +82,7 @@ function resetGame() {
   updateDisplay();
 
   document.getElementById("status").textContent =
-    "Ny kamp! Si stillingen.";
+    "Ny kamp!";
 }
 
 // -------------------------
@@ -104,7 +107,6 @@ const numberWords = {
   "åtte": 8,
   "ni": 9,
   "ti": 10,
-
   "elleve": 11,
   "tolv": 12,
   "tretten": 13,
@@ -118,32 +120,63 @@ const numberWords = {
 };
 
 function wordToNumber(word) {
-  word = word.toLowerCase().trim();
+  const cleaned = word.toLowerCase().trim();
 
-  // Hvis talegjenkjenningen allerede gir oss et tall
-  if (!isNaN(word)) {
-    return Number(word);
+  if (numberWords[cleaned] !== undefined) {
+    return numberWords[cleaned];
   }
 
-  return numberWords[word];
+  if (!isNaN(cleaned)) {
+    return Number(cleaned);
+  }
+
+  return undefined;
 }
 
 // -------------------------
-// TOLK SCORE
+// MULIGE NESTE SCORER
 // -------------------------
 
-function parseScore(text) {
-  let cleaned = text
+function getPossibleScores() {
+  return [
+    {
+      player1: score1 + 1,
+      player2: score2
+    },
+    {
+      player1: score1,
+      player2: score2 + 1
+    },
+    {
+      player1: score1,
+      player2: score2
+    }
+  ];
+}
+
+// -------------------------
+// NORMALISER DET IPHONE HØRER
+// -------------------------
+
+function normalizeSpeech(text) {
+  return text
     .toLowerCase()
-    .replace(/[.,!?]/g, " ")
-    .replace(/-/g, " ")
+    .replace(/[.,!?]/g, "")
     .replace(/\btil\b/g, " ")
     .replace(/\bmot\b/g, " ")
+    .replace(/-/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+// -------------------------
+// VANLIG PARSING
+// -------------------------
+
+function parseNormalScore(text) {
+  const cleaned = normalizeSpeech(text);
 
   const parts = cleaned.split(" ");
-
   const numbers = [];
 
   for (const part of parts) {
@@ -154,57 +187,80 @@ function parseScore(text) {
     }
   }
 
-  if (numbers.length < 2) {
+  if (numbers.length >= 2) {
+    return {
+      player1: numbers[0],
+      player2: numbers[1]
+    };
+  }
+
+  return null;
+}
+
+// -------------------------
+// SMART SCORE-TOLKING
+// -------------------------
+
+function parseSmartScore(text) {
+  // Først prøver vi vanlig parsing
+  const normalScore = parseNormalScore(text);
+
+  if (normalScore) {
+    return normalScore;
+  }
+
+  const cleaned = normalizeSpeech(text);
+
+  // Hvis talegjenkjenningen bare returnerte ett tall,
+  // for eksempel "10", "20", "73" osv.
+  const singleNumber = wordToNumber(cleaned);
+
+  if (singleNumber === undefined) {
     return null;
   }
 
-  return {
-    player1: numbers[0],
-    player2: numbers[1]
-  };
+  const heardDigits = String(singleNumber);
+
+  const possibleScores = getPossibleScores();
+
+  // Vi sammenligner det iPhone hørte med
+  // de eneste scorene som faktisk kan være riktige.
+  for (const possible of possibleScores) {
+    const combined =
+      `${possible.player1}${possible.player2}`;
+
+    if (combined === heardDigits) {
+      return possible;
+    }
+  }
+
+  return null;
 }
 
 // -------------------------
-// VALIDER SCORE
+// SETT SCORE
 // -------------------------
 
-function isValidNewScore(newScore1, newScore2) {
+function setScoreFromVoice(newScore1, newScore2, heardText) {
+  const possibleScores = getPossibleScores();
 
-  // Tillat samme score
-  if (newScore1 === score1 && newScore2 === score2) {
-    return true;
-  }
+  const valid = possibleScores.some(
+    score =>
+      score.player1 === newScore1 &&
+      score.player2 === newScore2
+  );
 
-  // Spiller 1 fikk ett poeng
-  if (
-    newScore1 === score1 + 1 &&
-    newScore2 === score2
-  ) {
-    return true;
-  }
-
-  // Spiller 2 fikk ett poeng
-  if (
-    newScore2 === score2 + 1 &&
-    newScore1 === score1
-  ) {
-    return true;
-  }
-
-  // Når kampen nettopp starter, tillater vi at dere
-  // sier en eksisterende score direkte.
-  if (score1 === 0 && score2 === 0) {
-    return true;
-  }
-
-  return false;
-}
-
-function setScoreFromVoice(newScore1, newScore2) {
-
-  if (!isValidNewScore(newScore1, newScore2)) {
+  if (!valid) {
     document.getElementById("status").textContent =
-      `⚠️ Hørte ${newScore1}-${newScore2}, men det passer ikke med ${score1}-${score2}`;
+      `🤔 Hørte "${heardText}", men scoren passer ikke`;
+
+    return;
+  }
+
+  // Hvis den hørte samme score, trenger vi ikke lagre historikk.
+  if (newScore1 === score1 && newScore2 === score2) {
+    document.getElementById("status").textContent =
+      `👂 Hørte "${heardText}" – fortsatt ${score1}-${score2}`;
 
     return;
   }
@@ -215,7 +271,7 @@ function setScoreFromVoice(newScore1, newScore2) {
   score2 = newScore2;
 
   document.getElementById("status").textContent =
-    `✅ Registrert ${score1}-${score2}`;
+    `👂 "${heardText}" → ✅ ${score1}-${score2}`;
 
   checkSetWinner();
   updateDisplay();
@@ -239,122 +295,111 @@ const status =
   document.getElementById("status");
 
 if (!SpeechRecognition) {
-
   listenButton.disabled = true;
 
   status.textContent =
-    "❌ Denne nettleseren støtter ikke talegjenkjenning.";
-
+    "❌ Talegjenkjenning støttes ikke.";
 } else {
-
   recognition = new SpeechRecognition();
 
   recognition.lang = "nb-NO";
-
   recognition.continuous = true;
-
   recognition.interimResults = false;
-
-  recognition.maxAlternatives = 3;
+  recognition.maxAlternatives = 5;
 
   recognition.onstart = function () {
-
     listening = true;
 
     listenButton.textContent =
       "🟢 Lytter...";
 
     status.textContent =
-      "Si stillingen, for eksempel «tre to»";
+      "Si scoren, f.eks. «tre to»";
   };
 
   recognition.onresult = function (event) {
-
     const lastResult =
       event.results[event.results.length - 1];
 
+    let heardText =
+      lastResult[0].transcript.trim();
+
     let foundScore = null;
-    let heardText = "";
 
-    // Vi prøver flere forslag fra talegjenkjenningen
+    // Prøv flere forslag fra talegjenkjenningen
     for (let i = 0; i < lastResult.length; i++) {
-
       const transcript =
         lastResult[i].transcript.trim();
 
-      if (i === 0) {
-        heardText = transcript;
-      }
+      console.log(
+        `Alternativ ${i + 1}:`,
+        transcript
+      );
 
       const parsed =
-        parseScore(transcript);
+        parseSmartScore(transcript);
 
       if (parsed) {
         foundScore = parsed;
+        heardText = transcript;
         break;
       }
     }
 
-    console.log("Hørte:", heardText);
+    console.log("Valgt:", heardText);
 
     if (!foundScore) {
-
       status.textContent =
-        `🤔 Hørte: "${heardText}"`;
+        `🤔 Hørte "${heardText}"`;
 
       return;
     }
 
     setScoreFromVoice(
       foundScore.player1,
-      foundScore.player2
+      foundScore.player2,
+      heardText
     );
   };
 
   recognition.onerror = function (event) {
-
     console.log(
       "Talegjenkjenningsfeil:",
       event.error
     );
 
     if (event.error === "not-allowed") {
-
       status.textContent =
-        "❌ Mikrofontilgang ble ikke tillatt.";
+        "❌ Mikrofontilgang mangler.";
 
       listening = false;
 
       listenButton.textContent =
         "🎙️ Start lytting";
+    }
 
-    } else if (event.error === "no-speech") {
+    else if (event.error === "no-speech") {
+      console.log("Ingen tale registrert");
+    }
 
+    else if (event.error === "aborted") {
+      console.log("Talegjenkjenning stoppet");
+    }
+
+    else {
       status.textContent =
-        "Hørte ingenting – prøv igjen.";
-
-    } else {
-
-      status.textContent =
-        `Tale-feil: ${event.error}`;
+        `⚠️ Tale-feil: ${event.error}`;
     }
   };
 
   recognition.onend = function () {
-
-    // På noen enheter avsluttes lyttingen automatisk.
-    // Hvis brukeren fortsatt vil lytte, prøver vi å starte igjen.
-
     if (listening) {
-
       try {
         recognition.start();
       } catch (error) {
         console.log(error);
       }
-
     } else {
-
       listenButton.textContent =
         "🎙️ Start lytting";
     }
@@ -363,9 +408,7 @@ if (!SpeechRecognition) {
   listenButton.addEventListener(
     "click",
     function () {
-
       if (!listening) {
-
         listening = true;
 
         try {
@@ -373,9 +416,7 @@ if (!SpeechRecognition) {
         } catch (error) {
           console.log(error);
         }
-
       } else {
-
         listening = false;
 
         recognition.stop();
