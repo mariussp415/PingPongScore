@@ -267,14 +267,19 @@ function setScoreFromVoice(newScore1, newScore2, heardText) {
 
   saveHistory();
 
-  score1 = newScore1;
-  score2 = newScore2;
+ score1 = newScore1;
+score2 = newScore2;
 
-  document.getElementById("status").textContent =
-    `👂 "${heardText}" → ✅ ${score1}-${score2}`;
+// Vibrer kort når score registreres
+if ("vibrate" in navigator) {
+  navigator.vibrate(100);
+}
 
-  checkSetWinner();
-  updateDisplay();
+document.getElementById("status").textContent =
+  `👂 "${heardText}" → ✅ ${score1}-${score2}`;
+
+checkSetWinner();
+updateDisplay();
 }
 
 // -------------------------
@@ -409,13 +414,15 @@ if (!SpeechRecognition) {
     "click",
     function () {
       if (!listening) {
-        listening = true;
+  listening = true;
 
-        try {
-          recognition.start();
-        } catch (error) {
-          console.log(error);
-        }
+  keepScreenAwake();
+
+  try {
+    recognition.start();
+  } catch (error) {
+    console.log(error);
+  }
       } else {
         listening = false;
 
@@ -429,6 +436,29 @@ if (!SpeechRecognition) {
       }
     }
   );
+
+  // -------------------------
+// HOLD SKJERMEN VÅKEN
+// -------------------------
+
+let wakeLock = null;
+
+async function keepScreenAwake() {
+  if ("wakeLock" in navigator) {
+    try {
+      wakeLock = await navigator.wakeLock.request("screen");
+      console.log("Skjermen holdes våken");
+    } catch (error) {
+      console.log("Wake Lock kunne ikke aktiveres:", error);
+    }
+  }
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible" && listening) {
+    keepScreenAwake();
+  }
+});
 }
 
 updateDisplay();
