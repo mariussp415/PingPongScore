@@ -1,3 +1,7 @@
+// =====================================================
+// PINGSCORE
+// =====================================================
+
 let score1 = 0;
 let score2 = 0;
 
@@ -6,9 +10,25 @@ let sets2 = 0;
 
 let history = [];
 
-// -------------------------
+let listening = false;
+let matchFinished = false;
+
+let recognition = null;
+let wakeLock = null;
+let audioContext = null;
+
+
+// =====================================================
+// ELEMENTER
+// =====================================================
+
+const listenButton = document.getElementById("listenButton");
+const status = document.getElementById("status");
+
+
+// =====================================================
 // SCORE
-// -------------------------
+// =====================================================
 
 function updateDisplay() {
   document.getElementById("score1").textContent = score1;
@@ -17,6 +37,7 @@ function updateDisplay() {
   document.getElementById("sets1").textContent = sets1;
   document.getElementById("sets2").textContent = sets2;
 }
+
 
 function saveHistory() {
   history.push({
@@ -27,7 +48,13 @@ function saveHistory() {
   });
 }
 
+
 function addPoint(player) {
+
+  if (matchFinished) {
+    return;
+  }
+
   saveHistory();
 
   if (player === 1) {
@@ -36,28 +63,105 @@ function addPoint(player) {
     score2++;
   }
 
+  playScoreSound();
+  flashScore();
+
   checkSetWinner();
   updateDisplay();
 }
 
+
+// =====================================================
+// SETT / KAMP
+// =====================================================
+
 function checkSetWinner() {
+
   const difference = Math.abs(score1 - score2);
 
+  // SPILLER 1 VINNER SETT
   if (score1 >= 11 && difference >= 2) {
+
     sets1++;
+
     score1 = 0;
     score2 = 0;
+
+    updateDisplay();
+
+    if (sets1 >= 3) {
+      endMatch(1);
+      return;
+    }
+
+    announceSetWinner(1);
   }
 
-  if (score2 >= 11 && difference >= 2) {
+  // SPILLER 2 VINNER SETT
+  else if (score2 >= 11 && difference >= 2) {
+
     sets2++;
+
     score1 = 0;
     score2 = 0;
+
+    updateDisplay();
+
+    if (sets2 >= 3) {
+      endMatch(2);
+      return;
+    }
+
+    announceSetWinner(2);
   }
 }
 
+
+function announceSetWinner(player) {
+
+  setTimeout(() => {
+
+    status.textContent =
+      `🏓 Spiller ${player} vant settet!`;
+
+  }, 100);
+}
+
+
+function endMatch(player) {
+
+  matchFinished = true;
+
+  updateDisplay();
+
+  status.textContent =
+    `🏆 SPILLER ${player} VANT KAMPEN!`;
+
+  listening = false;
+
+  if (recognition) {
+    try {
+      recognition.stop();
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  listenButton.textContent =
+    "🏆 Kamp ferdig";
+}
+
+
+// =====================================================
+// ANGRE
+// =====================================================
+
 function undo() {
-  if (history.length === 0) return;
+
+  if (history.length === 0) {
+    status.textContent = "Ingenting å angre.";
+    return;
+  }
 
   const previous = history.pop();
 
@@ -66,30 +170,50 @@ function undo() {
   sets1 = previous.sets1;
   sets2 = previous.sets2;
 
+  matchFinished = false;
+
   updateDisplay();
 
-  document.getElementById("status").textContent =
+  status.textContent =
     `↶ Tilbake til ${score1}-${score2}`;
 }
 
+
+// =====================================================
+// NY KAMP
+// =====================================================
+
 function resetGame() {
+
   score1 = 0;
   score2 = 0;
+
   sets1 = 0;
   sets2 = 0;
+
   history = [];
+
+  matchFinished = false;
 
   updateDisplay();
 
-  document.getElementById("status").textContent =
-    "Ny kamp!";
+  status.textContent =
+    "Ny kamp! Si stillingen.";
+
+  if (listening) {
+    listenButton.textContent = "🟢 Lytter...";
+  } else {
+    listenButton.textContent = "🎙️ Start lytting";
+  }
 }
 
-// -------------------------
+
+// =====================================================
 // NORSKE TALL
-// -------------------------
+// =====================================================
 
 const numberWords = {
+
   "null": 0,
   "zero": 0,
 
@@ -102,11 +226,14 @@ const numberWords = {
   "fire": 4,
   "fem": 5,
   "seks": 6,
+
   "sju": 7,
   "syv": 7,
+
   "åtte": 8,
   "ni": 9,
   "ti": 10,
+
   "elleve": 11,
   "tolv": 12,
   "tretten": 13,
@@ -119,8 +246,11 @@ const numberWords = {
   "tjue": 20
 };
 
+
 function wordToNumber(word) {
-  const cleaned = word.toLowerCase().trim();
+
+  const cleaned =
+    word.toLowerCase().trim();
 
   if (numberWords[cleaned] !== undefined) {
     return numberWords[cleaned];
@@ -133,54 +263,79 @@ function wordToNumber(word) {
   return undefined;
 }
 
-// -------------------------
+
+// =====================================================
 // MULIGE NESTE SCORER
-// -------------------------
+// =====================================================
 
 function getPossibleScores() {
+
   return [
+
+    // Spiller 1 får poeng
     {
       player1: score1 + 1,
       player2: score2
     },
+
+    // Spiller 2 får poeng
     {
       player1: score1,
       player2: score2 + 1
     },
+
+    // Samme score
     {
       player1: score1,
       player2: score2
     }
+
   ];
 }
 
-// -------------------------
-// NORMALISER DET IPHONE HØRER
-// -------------------------
+
+// =====================================================
+// NORMALISER TALE
+// =====================================================
 
 function normalizeSpeech(text) {
+
   return text
+
     .toLowerCase()
+
     .replace(/[.,!?]/g, "")
+
     .replace(/\btil\b/g, " ")
+
     .replace(/\bmot\b/g, " ")
+
     .replace(/-/g, " ")
+
     .replace(/\s+/g, " ")
+
     .trim();
 }
 
-// -------------------------
-// VANLIG PARSING
-// -------------------------
+
+// =====================================================
+// VANLIG SCORE-TOLKING
+// =====================================================
 
 function parseNormalScore(text) {
-  const cleaned = normalizeSpeech(text);
 
-  const parts = cleaned.split(" ");
+  const cleaned =
+    normalizeSpeech(text);
+
+  const parts =
+    cleaned.split(" ");
+
   const numbers = [];
 
   for (const part of parts) {
-    const number = wordToNumber(part);
+
+    const number =
+      wordToNumber(part);
 
     if (number !== undefined) {
       numbers.push(number);
@@ -188,6 +343,7 @@ function parseNormalScore(text) {
   }
 
   if (numbers.length >= 2) {
+
     return {
       player1: numbers[0],
       player2: numbers[1]
@@ -197,39 +353,76 @@ function parseNormalScore(text) {
   return null;
 }
 
-// -------------------------
+
+// =====================================================
 // SMART SCORE-TOLKING
-// -------------------------
+//
+// Eksempel:
+//
+// Du sier:
+// "to null"
+//
+// iPhone hører:
+// "20"
+//
+// Hvis nåværende score er 1-0:
+//
+// Mulige scorer:
+//
+// 2-0  → "20"
+// 1-1  → "11"
+//
+// Dermed vet PingScore at "20" = 2-0.
+// =====================================================
 
 function parseSmartScore(text) {
-  // Først prøver vi vanlig parsing
-  const normalScore = parseNormalScore(text);
+
+  // Først prøver vi normal tale
+  const normalScore =
+    parseNormalScore(text);
 
   if (normalScore) {
-    return normalScore;
+
+    const possible =
+      getPossibleScores();
+
+    const valid =
+      possible.some(score =>
+        score.player1 === normalScore.player1 &&
+        score.player2 === normalScore.player2
+      );
+
+    if (valid) {
+      return normalScore;
+    }
   }
 
-  const cleaned = normalizeSpeech(text);
 
-  // Hvis talegjenkjenningen bare returnerte ett tall,
-  // for eksempel "10", "20", "73" osv.
-  const singleNumber = wordToNumber(cleaned);
+  // Hvis iPhone har slått tallene sammen
+  const cleaned =
+    normalizeSpeech(text);
+
+  const singleNumber =
+    wordToNumber(cleaned);
 
   if (singleNumber === undefined) {
     return null;
   }
 
-  const heardDigits = String(singleNumber);
+  const heardDigits =
+    String(singleNumber);
 
-  const possibleScores = getPossibleScores();
+  const possibleScores =
+    getPossibleScores();
 
-  // Vi sammenligner det iPhone hørte med
-  // de eneste scorene som faktisk kan være riktige.
+
   for (const possible of possibleScores) {
+
     const combined =
       `${possible.player1}${possible.player2}`;
 
     if (combined === heardDigits) {
+
       return possible;
     }
   }
@@ -237,228 +430,571 @@ function parseSmartScore(text) {
   return null;
 }
 
-// -------------------------
-// SETT SCORE
-// -------------------------
 
-function setScoreFromVoice(newScore1, newScore2, heardText) {
-  const possibleScores = getPossibleScores();
+// =====================================================
+// SETT SCORE FRA STEMME
+// =====================================================
 
-  const valid = possibleScores.some(
-    score =>
+function setScoreFromVoice(
+  newScore1,
+  newScore2,
+  heardText
+) {
+
+  if (matchFinished) {
+    return;
+  }
+
+  const possibleScores =
+    getPossibleScores();
+
+  const valid =
+    possibleScores.some(score =>
       score.player1 === newScore1 &&
       score.player2 === newScore2
-  );
+    );
+
 
   if (!valid) {
-    document.getElementById("status").textContent =
+
+    status.textContent =
       `🤔 Hørte "${heardText}", men scoren passer ikke`;
 
     return;
   }
 
-  // Hvis den hørte samme score, trenger vi ikke lagre historikk.
-  if (newScore1 === score1 && newScore2 === score2) {
-    document.getElementById("status").textContent =
+
+  // Samme score som før
+  if (
+    newScore1 === score1 &&
+    newScore2 === score2
+  ) {
+
+    status.textContent =
       `👂 Hørte "${heardText}" – fortsatt ${score1}-${score2}`;
 
     return;
   }
 
+
   saveHistory();
 
- score1 = newScore1;
-score2 = newScore2;
 
-// Vibrer kort når score registreres
-if ("vibrate" in navigator) {
-  navigator.vibrate(100);
-}
+  score1 = newScore1;
+  score2 = newScore2;
 
-document.getElementById("status").textContent =
-  `👂 "${heardText}" → ✅ ${score1}-${score2}`;
 
-checkSetWinner();
-updateDisplay();
-}
+  // Bekreftelse
+  playScoreSound();
+  flashScore();
 
-// -------------------------
-// TALEGJENKJENNING
-// -------------------------
-
-const SpeechRecognition =
-  window.SpeechRecognition ||
-  window.webkitSpeechRecognition;
-
-let recognition = null;
-let listening = false;
-
-const listenButton =
-  document.getElementById("listenButton");
-
-const status =
-  document.getElementById("status");
-
-if (!SpeechRecognition) {
-  listenButton.disabled = true;
 
   status.textContent =
-    "❌ Talegjenkjenning støttes ikke.";
-} else {
-  recognition = new SpeechRecognition();
+    `👂 "${heardText}" → ✅ ${score1}-${score2}`;
 
-  recognition.lang = "nb-NO";
-  recognition.continuous = true;
-  recognition.interimResults = false;
-  recognition.maxAlternatives = 5;
 
-  recognition.onstart = function () {
-    listening = true;
+  checkSetWinner();
 
-    listenButton.textContent =
-      "🟢 Lytter...";
+  updateDisplay();
+}
 
-    status.textContent =
-      "Si scoren, f.eks. «tre to»";
-  };
 
-  recognition.onresult = function (event) {
-    const lastResult =
-      event.results[event.results.length - 1];
+// =====================================================
+// LYDBEKREFTELSE
+// =====================================================
 
-    let heardText =
-      lastResult[0].transcript.trim();
+function setupAudio() {
 
-    let foundScore = null;
+  try {
 
-    // Prøv flere forslag fra talegjenkjenningen
-    for (let i = 0; i < lastResult.length; i++) {
-      const transcript =
-        lastResult[i].transcript.trim();
+    const AudioContext =
+      window.AudioContext ||
+      window.webkitAudioContext;
 
-      console.log(
-        `Alternativ ${i + 1}:`,
-        transcript
-      );
-
-      const parsed =
-        parseSmartScore(transcript);
-
-      if (parsed) {
-        foundScore = parsed;
-        heardText = transcript;
-        break;
-      }
-    }
-
-    console.log("Valgt:", heardText);
-
-    if (!foundScore) {
-      status.textContent =
-        `🤔 Hørte "${heardText}"`;
-
+    if (!AudioContext) {
       return;
     }
 
-    setScoreFromVoice(
-      foundScore.player1,
-      foundScore.player2,
-      heardText
-    );
-  };
+    if (!audioContext) {
+      audioContext =
+        new AudioContext();
+    }
 
-  recognition.onerror = function (event) {
+    if (
+      audioContext.state === "suspended"
+    ) {
+
+      audioContext.resume();
+    }
+
+  } catch (error) {
+
     console.log(
-      "Talegjenkjenningsfeil:",
-      event.error
+      "AudioContext kunne ikke startes:",
+      error
     );
+  }
+}
 
-    if (event.error === "not-allowed") {
-      status.textContent =
-        "❌ Mikrofontilgang mangler.";
 
-      listening = false;
-
-      listenButton.textContent =
-        "🎙️ Start lytting";
-    }
-
-    else if (event.error === "no-speech") {
-      console.log("Ingen tale registrert");
-    }
-
-    else if (event.error === "aborted") {
-      console.log("Talegjenkjenning stoppet");
-    }
-
-    else {
-      status.textContent =
-        `⚠️ Tale-feil: ${event.error}`;
-    }
-  };
-
-  recognition.onend = function () {
-    if (listening) {
-      try {
-        recognition.start();
-      } catch (error) {
-        console.log(error);
-      }
-    } else {
-      listenButton.textContent =
-        "🎙️ Start lytting";
-    }
-  };
-
-  listenButton.addEventListener(
-    "click",
-    function () {
-      if (!listening) {
-  listening = true;
-
-  keepScreenAwake();
+function playScoreSound() {
 
   try {
-    recognition.start();
-  } catch (error) {
-    console.log(error);
-  }
-      } else {
-        listening = false;
 
-        recognition.stop();
+    if (!audioContext) {
+      return;
+    }
+
+    if (
+      audioContext.state === "suspended"
+    ) {
+      audioContext.resume();
+    }
+
+
+    const oscillator =
+      audioContext.createOscillator();
+
+    const gain =
+      audioContext.createGain();
+
+
+    oscillator.connect(gain);
+
+    gain.connect(
+      audioContext.destination
+    );
+
+
+    // Tone
+    oscillator.frequency.value = 700;
+
+    oscillator.type = "sine";
+
+
+    // Volum
+    gain.gain.setValueAtTime(
+      0.12,
+      audioContext.currentTime
+    );
+
+
+    // Fade raskt ut
+    gain.gain.exponentialRampToValueAtTime(
+      0.001,
+      audioContext.currentTime + 0.08
+    );
+
+
+    oscillator.start();
+
+    oscillator.stop(
+      audioContext.currentTime + 0.08
+    );
+
+  } catch (error) {
+
+    console.log(
+      "Kunne ikke spille lyd:",
+      error
+    );
+  }
+}
+
+
+// =====================================================
+// VISUELT BLINK
+// =====================================================
+
+function flashScore() {
+
+  const scoreboard =
+    document.querySelector(".scoreboard");
+
+  if (!scoreboard) {
+    return;
+  }
+
+
+  scoreboard.classList.remove(
+    "score-flash"
+  );
+
+
+  // Restart animasjonen
+  void scoreboard.offsetWidth;
+
+
+  scoreboard.classList.add(
+    "score-flash"
+  );
+}
+
+
+// =====================================================
+// HOLD SKJERMEN VÅKEN
+// =====================================================
+
+async function keepScreenAwake() {
+
+  if (!("wakeLock" in navigator)) {
+
+    console.log(
+      "Wake Lock støttes ikke på denne enheten"
+    );
+
+    return;
+  }
+
+
+  try {
+
+    wakeLock =
+      await navigator.wakeLock.request(
+        "screen"
+      );
+
+    console.log(
+      "🔆 Skjermen holdes våken"
+    );
+
+  } catch (error) {
+
+    console.log(
+      "Wake Lock kunne ikke aktiveres:",
+      error
+    );
+  }
+}
+
+
+document.addEventListener(
+  "visibilitychange",
+  () => {
+
+    if (
+      document.visibilityState === "visible" &&
+      listening
+    ) {
+
+      keepScreenAwake();
+    }
+  }
+);
+
+
+// =====================================================
+// TALEGJENKJENNING
+// =====================================================
+
+const SpeechRecognition =
+
+  window.SpeechRecognition ||
+  window.webkitSpeechRecognition;
+
+
+if (!SpeechRecognition) {
+
+  listenButton.disabled = true;
+
+  status.textContent =
+    "❌ Talegjenkjenning støttes ikke i denne nettleseren.";
+
+} else {
+
+  recognition =
+    new SpeechRecognition();
+
+
+  recognition.lang =
+    "nb-NO";
+
+
+  recognition.continuous =
+    true;
+
+
+  recognition.interimResults =
+    false;
+
+
+  recognition.maxAlternatives =
+    5;
+
+
+  // -----------------------------------------
+  // START
+  // -----------------------------------------
+
+  recognition.onstart =
+    function () {
+
+      listening = true;
+
+      listenButton.textContent =
+        "🟢 Lytter...";
+
+      status.textContent =
+        "Si scoren, f.eks. «tre to»";
+    };
+
+
+  // -----------------------------------------
+  // RESULTAT
+  // -----------------------------------------
+
+  recognition.onresult =
+    function (event) {
+
+      const lastResult =
+        event.results[
+          event.results.length - 1
+        ];
+
+
+      let heardText =
+        lastResult[0]
+          .transcript
+          .trim();
+
+
+      let foundScore =
+        null;
+
+
+      // Prøv flere forslag
+      // fra talegjenkjenningen
+
+      for (
+        let i = 0;
+        i < lastResult.length;
+        i++
+      ) {
+
+        const transcript =
+          lastResult[i]
+            .transcript
+            .trim();
+
+
+        console.log(
+          `Alternativ ${i + 1}:`,
+          transcript
+        );
+
+
+        const parsed =
+          parseSmartScore(
+            transcript
+          );
+
+
+        if (parsed) {
+
+          foundScore =
+            parsed;
+
+          heardText =
+            transcript;
+
+          break;
+        }
+      }
+
+
+      console.log(
+        "Valgt:",
+        heardText
+      );
+
+
+      if (!foundScore) {
+
+        status.textContent =
+          `🤔 Hørte "${heardText}"`;
+
+        return;
+      }
+
+
+      setScoreFromVoice(
+        foundScore.player1,
+        foundScore.player2,
+        heardText
+      );
+    };
+
+
+  // -----------------------------------------
+  // FEIL
+  // -----------------------------------------
+
+  recognition.onerror =
+    function (event) {
+
+      console.log(
+        "Speech error:",
+        event.error
+      );
+
+
+      if (
+        event.error ===
+        "not-allowed"
+      ) {
+
+        status.textContent =
+          "❌ Mikrofontilgang mangler.";
+
+        listening =
+          false;
 
         listenButton.textContent =
           "🎙️ Start lytting";
+      }
+
+
+      else if (
+        event.error ===
+        "no-speech"
+      ) {
+
+        console.log(
+          "Ingen tale registrert"
+        );
+      }
+
+
+      else if (
+        event.error ===
+        "aborted"
+      ) {
+
+        console.log(
+          "Talegjenkjenningen ble stoppet"
+        );
+      }
+
+
+      else {
+
+        status.textContent =
+          `⚠️ Tale-feil: ${event.error}`;
+      }
+    };
+
+
+  // -----------------------------------------
+  // TALEGJENKJENNING STOPPET
+  // -----------------------------------------
+
+  recognition.onend =
+    function () {
+
+      // Safari stopper ofte
+      // SpeechRecognition av seg selv.
+      // Derfor starter vi den igjen.
+
+      if (
+        listening &&
+        !matchFinished
+      ) {
+
+        setTimeout(() => {
+
+          try {
+
+            recognition.start();
+
+          } catch (error) {
+
+            console.log(
+              "Kunne ikke starte lytting igjen:",
+              error
+            );
+          }
+
+        }, 250);
+
+      } else {
+
+        listenButton.textContent =
+          matchFinished
+            ? "🏆 Kamp ferdig"
+            : "🎙️ Start lytting";
+      }
+    };
+
+
+  // -----------------------------------------
+  // START / STOPP KNAPP
+  // -----------------------------------------
+
+  listenButton.addEventListener(
+    "click",
+    async function () {
+
+      // Denne brukerinteraksjonen
+      // låser opp lyd på iPhone
+      setupAudio();
+
+
+      if (!listening) {
+
+        if (matchFinished) {
+          return;
+        }
+
+
+        listening =
+          true;
+
+
+        await keepScreenAwake();
+
+
+        try {
+
+          recognition.start();
+
+        } catch (error) {
+
+          console.log(
+            "Kunne ikke starte:",
+            error
+          );
+        }
+
+      } else {
+
+        listening =
+          false;
+
+
+        try {
+
+          recognition.stop();
+
+        } catch (error) {
+
+          console.log(error);
+        }
+
+
+        listenButton.textContent =
+          "🎙️ Start lytting";
+
 
         status.textContent =
           "Lytting stoppet.";
       }
     }
   );
-
-  // -------------------------
-// HOLD SKJERMEN VÅKEN
-// -------------------------
-
-let wakeLock = null;
-
-async function keepScreenAwake() {
-  if ("wakeLock" in navigator) {
-    try {
-      wakeLock = await navigator.wakeLock.request("screen");
-      console.log("Skjermen holdes våken");
-    } catch (error) {
-      console.log("Wake Lock kunne ikke aktiveres:", error);
-    }
-  }
 }
 
-document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && listening) {
-    keepScreenAwake();
-  }
-});
-}
+
+// =====================================================
+// START
+// =====================================================
 
 updateDisplay();
