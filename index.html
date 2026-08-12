@@ -1,62 +1,39 @@
-<!DOCTYPE html>
-<html lang="no">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PingScore</title>
-  <link rel="stylesheet" href="style.css">
-</head>
-<body>
+<main class="app">
+  <h1>🏓 PingScore</h1>
 
-  <main class="app">
-    <h1>🏓 PingScore</h1>
+  <div class="sets">
+    Sett:
+    <span id="sets1">0</span>
+    –
+    <span id="sets2">0</span>
+  </div>
 
-    <h1>🏓 PingScore</h1>
-
-<div class="sets">
-  Sett:
-  <span id="sets1">0</span>
-  –
-  <span id="sets2">0</span>
-</div>
-
-<div class="scoreboard">
-
-    <div class="scoreboard">
-      <div class="player">
-        <p>Spiller 1</p>
-        <div id="score1" class="score">0</div>
-        <button onclick="addPoint(1)">+</button>
-      </div>
-
-      <div class="divider">–</div>
-
-      <div class="player">
-        <p>Spiller 2</p>
-        <div id="score2" class="score">0</div>
-        <button onclick="addPoint(2)">+</button>
-      </div>
+  <div class="scoreboard">
+    <div class="player">
+      <p>Spiller 1</p>
+      <div id="score1" class="score">0</div>
+      <button onclick="addPoint(1)">+</button>
     </div>
 
-    <div class="sets">
-      Sett:
-      <span id="sets1">0</span>
-      –
-      <span id="sets2">0</span>
+    <div class="divider">–</div>
+
+    <div class="player">
+      <p>Spiller 2</p>
+      <div id="score2" class="score">0</div>
+      <button onclick="addPoint(2)">+</button>
     </div>
+  </div>
 
-    <button id="listenButton" class="listen-button">
-      🎙️ Start lytting
-    </button>
+  <button id="listenButton" class="listen-button">
+    🎙️ Start lytting
+  </button>
 
-    <p id="status">Si stillingen, for eksempel «tre to»</p>
+  <p id="status">
+    Si stillingen, for eksempel «tre to»
+  </p>
 
-    <div class="controls">
-      <button onclick="undo()">↶ Angre</button>
-      <button onclick="resetGame()">Ny kamp</button>
-    </div>
-  </main>
-
-<script src="app.js?v=3"></script>
-</body>
-</html>
+  <div class="controls">
+    <button onclick="undo()">↶ Angre</button>
+    <button onclick="resetGame()">Ny kamp</button>
+  </div>
+</main>
