@@ -2,276 +2,364 @@
 <html lang="no">
 <head>
   <meta charset="UTF-8">
-
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-  >
-
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#0b0d10">
-
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta
-    name="apple-mobile-web-app-status-bar-style"
-    content="black-translucent"
-  >
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="PingScore">
-
   <title>PingScore</title>
-
-  <link rel="stylesheet" href="style.css?v=13">
+  <link rel="stylesheet" href="style.css?v=16">
 </head>
 
 <body>
 
-  <main class="app">
+  <!-- ==================================================
+       HJEM
+  =================================================== -->
+  <main id="homeScreen" class="home-screen">
 
-    <header class="topbar">
-      <h1>🏓 PingScore</h1>
+    <div class="home-brand">
+      <div class="home-logo">🏓</div>
+      <h1>PingScore</h1>
+      <p>Hold styr på kampen. Og rivaliseringen.</p>
+    </div>
 
-      <div class="match-setting">
-        <label for="setsToWin">Først til</label>
+    <section class="home-card">
+      <div class="section-label">SPILLERE</div>
 
-        <select id="setsToWin">
-          <option value="3">3 sett</option>
-          <option value="4">4 sett</option>
-          <option value="5" selected>5 sett</option>
-        </select>
+      <div class="home-name-row">
+        <input id="player1NameInput" type="text" value="Marius" maxlength="15">
+        <span>VS</span>
+        <input id="player2NameInput" type="text" value="Petter" maxlength="15">
       </div>
+    </section>
+
+    <section id="activeMatchCard" class="active-match-card hidden">
+      <div class="active-match-top">
+        <span>Pågående kamp</span>
+        <span class="live-dot"></span>
+      </div>
+
+      <div id="homeActiveMatchScore" class="active-match-score">
+        Marius 0–0 Petter
+      </div>
+
+      <div id="homeActiveMatchMeta" class="active-match-meta">
+        Poeng 0–0
+      </div>
+
+      <button class="primary-button continue-button" onclick="continueMatch()">
+        ▶ Fortsett kamp
+      </button>
+    </section>
+
+    <button id="startMatchButton" class="primary-button start-match-button" onclick="openMatchSetup()">
+      🏓 Start kamp
+    </button>
+
+    <div class="home-nav">
+      <button onclick="openHistory()">
+        <span class="nav-icon">📊</span>
+        <span>Historikk</span>
+      </button>
+
+      <button onclick="openHeadToHead()">
+        <span class="nav-icon">👑</span>
+        <span>Head to Head</span>
+      </button>
+    </div>
+
+  </main>
+
+
+  <!-- ==================================================
+       LIVE KAMP
+  =================================================== -->
+  <main id="matchScreen" class="app hidden">
+
+    <header class="match-header">
+      <button class="icon-button" onclick="showHomeScreen()" aria-label="Tilbake til hjem">
+        ‹
+      </button>
+
+      <div class="match-header-title">
+        <strong>🏓 PingScore</strong>
+        <span id="liveMatchTarget">Først til 5 sett</span>
+      </div>
+
+      <button class="icon-button" onclick="openHistory()" aria-label="Historikk">
+        📊
+      </button>
     </header>
 
 
-    <!-- NAVN -->
-    <div class="name-row">
+    <!-- SETT - større og tydeligere -->
+    <section class="set-score-card">
+      <div class="section-label">SETT</div>
 
-      <input
-        id="player1NameInput"
-        type="text"
-        value="Marius"
-        maxlength="15"
-      >
+      <div class="set-score-names">
+        <span id="player1Label">Marius</span>
+        <span id="player2Label">Petter</span>
+      </div>
 
-      <span class="vs">VS</span>
+      <div class="set-score-big">
+        <strong id="sets1">0</strong>
+        <span>–</span>
+        <strong id="sets2">0</strong>
+      </div>
+    </section>
 
-      <input
-        id="player2NameInput"
-        type="text"
-        value="Petter"
-        maxlength="15"
-      >
 
+    <!-- SETTKART -->
+    <div id="setHistory" class="set-history">
+      <span class="history-empty">Ingen sett ferdig ennå</span>
     </div>
 
 
-    <!-- SETT -->
-    <div class="sets">
-
-      <span id="player1Label">
-        Marius
-      </span>
-
-      <strong id="sets1">
-        0
-      </strong>
-
-      <span>–</span>
-
-      <strong id="sets2">
-        0
-      </strong>
-
-      <span id="player2Label">
-        Petter
-      </span>
-
+    <!-- SERVER -->
+    <div id="serveBanner" class="serve-banner">
+      🏓 Marius server
     </div>
 
 
-    <!-- SETTHISTORIKK I AKTIV KAMP -->
-    <div
-      id="setHistory"
-      class="set-history"
-    >
-      <span class="history-empty">
-        Ingen sett ferdig ennå
-      </span>
-    </div>
-
-
-    <!-- SCORE -->
+    <!-- POENG -->
     <div class="scoreboard">
 
       <div class="player">
-
-        <p id="scorePlayer1Name">
-          Marius
-        </p>
-
-        <div
-          id="score1"
-          class="score"
-        >
-          0
+        <div class="player-name-line">
+          <p id="scorePlayer1Name">Marius</p>
+          <span id="server1" class="server-indicator">SERVER</span>
         </div>
 
-        <button
-          class="point-button"
-          onclick="addPoint(1)"
-        >
+        <div id="score1" class="score">0</div>
+
+        <button class="point-button" onclick="addPoint(1)">
           +
         </button>
-
       </div>
 
 
-      <div class="divider">
-        –
-      </div>
+      <div class="divider">–</div>
 
 
       <div class="player">
-
-        <p id="scorePlayer2Name">
-          Petter
-        </p>
-
-        <div
-          id="score2"
-          class="score"
-        >
-          0
+        <div class="player-name-line">
+          <span id="server2" class="server-indicator">SERVER</span>
+          <p id="scorePlayer2Name">Petter</p>
         </div>
 
-        <button
-          class="point-button"
-          onclick="addPoint(2)"
-        >
+        <div id="score2" class="score">0</div>
+
+        <button class="point-button" onclick="addPoint(2)">
           +
         </button>
-
       </div>
 
     </div>
 
 
-    <!-- MIKROFON -->
-    <button
-      id="listenButton"
-      class="listen-button"
-    >
+    <button id="listenButton" class="listen-button">
       🎙️ Start lytting
     </button>
-
 
     <p id="status">
       Si scoren eller bruk + knappene
     </p>
 
 
-    <!-- KONTROLLER -->
     <div class="controls">
-
-      <button onclick="undo()">
-        ↶ Angre
-      </button>
-
-      <button onclick="resetGame()">
-        Ny kamp
-      </button>
-
+      <button onclick="undo()">↶ Angre</button>
+      <button onclick="openMatchSetup()">Ny kamp</button>
     </div>
 
 
-    <!-- HISTORIKK -->
-    <button
-      id="historyButton"
-      class="history-button"
-      onclick="openHistory()"
-    >
-      📊 Historikk
-    </button>
+    <div class="bottom-nav">
+      <button onclick="openHistory()">📊 Historikk</button>
+      <button onclick="openHeadToHead()">👑 H2H</button>
+    </div>
 
   </main>
 
 
-  <!-- ===============================
-       HISTORIKK-VISNING
-  ================================ -->
+  <!-- ==================================================
+       START KAMP - 2 STEG
+  =================================================== -->
+  <section id="matchSetup" class="setup-overlay hidden">
 
-  <section
-    id="historyScreen"
-    class="history-screen hidden"
-  >
+    <div class="setup-card">
 
-    <div class="history-header">
+      <div class="setup-top">
+        <span id="setupProgress">1 av 2</span>
 
-      <h2>📊 Historikk</h2>
+        <button class="setup-close" onclick="closeMatchSetup()">
+          ✕
+        </button>
+      </div>
 
-      <button
-        class="close-history"
-        onclick="closeHistory()"
-      >
-        ✕
-      </button>
+
+      <!-- STEG 1 -->
+      <div id="setupStep1" class="setup-step">
+
+        <div class="setup-emoji">🏓</div>
+
+        <h2>Hvor lang kamp?</h2>
+
+        <p>
+          Første spiller til valgt antall sett vinner.
+        </p>
+
+        <div class="setup-options">
+          <button onclick="chooseSetTarget(3)">
+            <strong>Først til 3</strong>
+            <span>Maks 5 sett</span>
+          </button>
+
+          <button onclick="chooseSetTarget(4)">
+            <strong>Først til 4</strong>
+            <span>Maks 7 sett</span>
+          </button>
+
+          <button onclick="chooseSetTarget(5)">
+            <strong>Først til 5</strong>
+            <span>Maks 9 sett</span>
+          </button>
+        </div>
+
+      </div>
+
+
+      <!-- STEG 2 -->
+      <div id="setupStep2" class="setup-step hidden">
+
+        <div class="setup-emoji">🏓</div>
+
+        <h2>Hvem server først?</h2>
+
+        <p>
+          PingScore bytter server automatisk under kampen.
+        </p>
+
+        <div class="server-options">
+
+          <button onclick="startConfiguredMatch(1)">
+            <span class="server-ball">🏓</span>
+            <strong id="setupServer1Name">Marius</strong>
+          </button>
+
+          <button onclick="startConfiguredMatch(2)">
+            <span class="server-ball">🏓</span>
+            <strong id="setupServer2Name">Petter</strong>
+          </button>
+
+        </div>
+
+        <button class="setup-back" onclick="setupBack()">
+          ← Tilbake
+        </button>
+
+      </div>
 
     </div>
-
-
-    <div class="overall-title">
-      Kamper totalt
-    </div>
-
-
-    <div class="overall-names">
-
-      <span id="historyPlayer1Name">
-        Marius
-      </span>
-
-      <span></span>
-
-      <span id="historyPlayer2Name">
-        Petter
-      </span>
-
-    </div>
-
-
-    <!-- STORE TOTALSCOREN -->
-    <div class="overall-score">
-
-      <span id="overallWins1">
-        0
-      </span>
-
-      <span class="overall-divider">
-        –
-      </span>
-
-      <span id="overallWins2">
-        0
-      </span>
-
-    </div>
-
-
-    <div
-      id="matchHistoryList"
-      class="match-history-list"
-    >
-    </div>
-
-    <button
-  class="clear-history-button"
-  onclick="clearAllHistory()"
->
-  🗑 Nullstill historikk
-</button>
 
   </section>
 
 
-  <script src="app.js?v=13"></script>
+  <!-- ==================================================
+       HISTORIKK
+  =================================================== -->
+  <section id="historyScreen" class="overlay-screen hidden">
+
+    <div class="overlay-header">
+      <h2>📊 Historikk</h2>
+      <button class="close-button" onclick="closeHistory()">✕</button>
+    </div>
+
+    <div class="overall-title">Kamper totalt</div>
+
+    <div class="overall-names">
+      <span id="historyPlayer1Name">Marius</span>
+      <span></span>
+      <span id="historyPlayer2Name">Petter</span>
+    </div>
+
+    <div class="overall-score">
+      <span id="overallWins1">0</span>
+      <span class="overall-divider">–</span>
+      <span id="overallWins2">0</span>
+    </div>
+
+    <div id="matchHistoryList" class="match-history-list"></div>
+
+    <button class="clear-history-button" onclick="clearAllHistory()">
+      🗑 Nullstill historikk
+    </button>
+
+  </section>
+
+
+  <!-- ==================================================
+       HEAD TO HEAD
+  =================================================== -->
+  <section id="h2hScreen" class="overlay-screen hidden">
+
+    <div class="overlay-header">
+      <h2>👑 Head to Head</h2>
+      <button class="close-button" onclick="closeHeadToHead()">✕</button>
+    </div>
+
+    <div class="h2h-names">
+      <span id="h2hPlayer1Name">Marius</span>
+      <span>VS</span>
+      <span id="h2hPlayer2Name">Petter</span>
+    </div>
+
+    <div class="h2h-big-score">
+      <span id="h2hWins1">0</span>
+      <span>–</span>
+      <span id="h2hWins2">0</span>
+    </div>
+
+    <div class="stats-grid">
+
+      <div class="stat-card">
+        <span class="stat-label">Seiersprosent</span>
+
+        <div class="split-stat">
+          <strong id="h2hRate1">0%</strong>
+          <strong id="h2hRate2">0%</strong>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <span class="stat-label">Sett totalt</span>
+
+        <div class="split-stat">
+          <strong id="h2hSets1">0</strong>
+          <strong id="h2hSets2">0</strong>
+        </div>
+      </div>
+
+      <div class="stat-card full">
+        <span class="stat-label">Nåværende rekke</span>
+        <strong id="h2hStreak">Ingen kamper ennå</strong>
+      </div>
+
+      <div class="stat-card full">
+        <span class="stat-label">Gjennomsnittlig kamplengde</span>
+        <strong id="h2hAverageDuration">–</strong>
+      </div>
+
+      <div class="stat-card full">
+        <span class="stat-label">Siste 10 – fra Marius sitt perspektiv</span>
+        <div id="h2hForm" class="form-row">–</div>
+      </div>
+
+    </div>
+
+  </section>
+
+
+  <script src="app.js?v=16"></script>
 
 </body>
 </html>
