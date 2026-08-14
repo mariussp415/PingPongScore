@@ -361,5 +361,50 @@
 
   <script src="app.js?v=16"></script>
 
+  <section id="winnerPopup" class="winner-popup hidden">
+
+  <div class="winner-bg">
+    <span class="rocket r1">🚀</span>
+    <span class="rocket r2">🚀</span>
+    <span class="rocket r3">🚀</span>
+    <span class="rocket r4">🚀</span>
+    <span class="rocket r5">🚀</span>
+    <span class="rocket r6">🚀</span>
+    <span class="rocket r7">🚀</span>
+    <span class="rocket r8">🚀</span>
+  </div>
+
+  <div class="winner-card">
+
+    <div class="winner-small">
+      WOOHOO VINNER
+    </div>
+
+    <div id="winnerNamePopup" class="winner-name-popup">
+      MARIUS
+    </div>
+
+    <div id="winnerScorePopup" class="winner-score-popup">
+      5–3 i sett
+    </div>
+
+    <div id="winnerDurationPopup" class="winner-duration-popup">
+      ⏱ 24 min
+    </div>
+
+    <div class="winner-actions">
+      <button class="winner-rematch" onclick="rematchFromPopup()">
+        🔁 Rematch
+      </button>
+
+      <button class="winner-close" onclick="closeWinnerPopup()">
+        Lukk
+      </button>
+    </div>
+
+  </div>
+
+</section>
+
 </body>
 </html>

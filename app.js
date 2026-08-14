@@ -1,5 +1,5 @@
 // =====================================================
-// PINGSCORE v16
+// PINGSCORE v17
 // =====================================================
 
 let score1 = 0;
@@ -18,6 +18,7 @@ let history = [];
 let matchHistory = [];
 let currentMatchHistoryId = null;
 let matchStartTime = null;
+let lastCompletedMatch = null;
 
 let listening = false;
 let recognitionRunning = false;
@@ -249,6 +250,7 @@ function setupBack() {
 }
 
 function startConfiguredMatch(server) {
+  closeWinnerPopup();
   stopVoiceForNavigation();
 
   setsToWin = pendingSetsToWin;
@@ -264,6 +266,7 @@ function startConfiguredMatch(server) {
 
   matchFinished = false;
   currentMatchHistoryId = null;
+  lastCompletedMatch = null;
 
   // Nå starter kampklokken når dere faktisk trykker Start kamp.
   matchStartTime = Date.now();
@@ -519,46 +522,83 @@ function endMatch(player) {
   if (matchFinished) return;
 
   matchFinished = true;
-  const winnerName = player === 1 ? player1Name : player2Name;
+
+  const winnerName =
+    player === 1
+      ? player1Name
+      : player2Name;
+
   const now = Date.now();
-  const durationMs = matchStartTime ? now - matchStartTime : null;
-  const matchId = `${now}-${Math.random().toString(36).slice(2, 8)}`;
+
+  const durationMs =
+    matchStartTime
+      ? now - matchStartTime
+      : null;
+
+  const matchId =
+    `${now}-${Math.random().toString(36).slice(2, 8)}`;
 
   currentMatchHistoryId = matchId;
 
-  matchHistory.push({
+  const completedMatch = {
     id: matchId,
     timestamp: now,
     startTimestamp: matchStartTime,
     durationMs,
+
     player1: player1Name,
     player2: player2Name,
+
     winner: winnerName,
     winnerSide: player,
+
     sets1,
     sets2,
     setsToWin,
     startingServer,
+
     sets: setHistory.map(set => ({ ...set }))
-  });
+  };
+
+  lastCompletedMatch = completedMatch;
+
+  matchHistory.push(completedMatch);
 
   saveMatchHistory();
   saveCurrentGame();
+
   renderMatchHistory();
   renderHeadToHead();
+  updateHomeScreen();
 
-  setStatus(`🏆 ${winnerName.toUpperCase()} VANT KAMPEN! · ${formatDuration(durationMs)}`);
+  setStatus(
+    `🏆 ${winnerName.toUpperCase()} VANT KAMPEN! · ${formatDuration(durationMs)}`
+  );
 
   listening = false;
+  clearRestartTimer();
+
   if (recognition && recognitionRunning) {
-    try { recognition.stop(); } catch (error) { console.log(error); }
+    try {
+      recognition.stop();
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   setListenButton("🏆 Kamp ferdig");
   updateServerIndicator();
+
+  // Litt forsinkelse gjør at siste poeng/settskifte rekker å vises
+  // før vinnerkortet kommer opp.
+  setTimeout(() => {
+    showWinnerPopup(completedMatch);
+  }, 450);
 }
 
 function undo() {
+  closeWinnerPopup();
+
   if (history.length === 0) {
     setStatus("Ingenting å angre.");
     return;
@@ -568,6 +608,7 @@ function undo() {
     matchHistory = matchHistory.filter(match => match.id !== currentMatchHistoryId);
     saveMatchHistory();
     currentMatchHistoryId = null;
+    lastCompletedMatch = null;
   }
 
   const previous = history.pop();
@@ -587,6 +628,8 @@ function undo() {
 }
 
 function resetGame() {
+  closeWinnerPopup();
+
   score1 = 0;
   score2 = 0;
   sets1 = 0;
@@ -596,6 +639,7 @@ function resetGame() {
   matchFinished = false;
   currentMatchHistoryId = null;
   matchStartTime = null;
+  lastCompletedMatch = null;
   speakingScore = false;
   ignoreSpeechUntil = 0;
 
@@ -623,6 +667,84 @@ function openHeadToHead() {
 
 function closeHeadToHead() {
   document.getElementById("h2hScreen")?.classList.add("hidden");
+}
+
+
+function showWinnerPopup(matchData) {
+  const popup = document.getElementById("winnerPopup");
+  const name = document.getElementById("winnerNamePopup");
+  const score = document.getElementById("winnerScorePopup");
+  const duration = document.getElementById("winnerDurationPopup");
+
+  if (!popup || !name || !score || !duration || !matchData) return;
+
+  name.textContent = String(matchData.winner || "").toUpperCase();
+  score.textContent = `${matchData.sets1}–${matchData.sets2} i sett`;
+  duration.textContent = `⏱ ${formatDuration(matchData.durationMs)}`;
+
+  popup.classList.remove("hidden");
+}
+
+function closeWinnerPopup() {
+  document.getElementById("winnerPopup")?.classList.add("hidden");
+}
+
+function rematchFromPopup() {
+  closeWinnerPopup();
+
+  // Samme kampformat, men den andre spilleren får første serve.
+  const nextServer = startingServer === 1 ? 2 : 1;
+  startConfiguredRematch(nextServer);
+}
+
+function startConfiguredRematch(server) {
+  stopVoiceForNavigation();
+
+  startingServer = Number(server) === 2 ? 2 : 1;
+
+  score1 = 0;
+  score2 = 0;
+  sets1 = 0;
+  sets2 = 0;
+
+  setHistory = [];
+  history = [];
+
+  matchFinished = false;
+  currentMatchHistoryId = null;
+  lastCompletedMatch = null;
+
+  // Rematch starter med en gang knappen trykkes.
+  matchStartTime = Date.now();
+
+  localStorage.setItem(
+    "pingscore-sets-to-win",
+    String(setsToWin)
+  );
+
+  localStorage.setItem(
+    "pingscore-starting-server",
+    String(startingServer)
+  );
+
+  if (setsToWinSelect) {
+    setsToWinSelect.value = String(setsToWin);
+  }
+
+  if (startingServerSelect) {
+    startingServerSelect.value = String(startingServer);
+  }
+
+  updateDisplay();
+  showMatchScreen();
+
+  const serverName =
+    startingServer === 1
+      ? player1Name
+      : player2Name;
+
+  setStatus(`🔁 Rematch – ${serverName} server først`);
+  setListenButton("🎙️ Start lytting");
 }
 
 function samePlayerPair(match) {
@@ -794,6 +916,8 @@ function renderHeadToHead() {
 }
 
 function clearAllHistory() {
+  closeWinnerPopup();
+
   const confirmed = confirm(
     `Er du sikker? Dette sletter all lagret historikk mellom ${player1Name} og ${player2Name} og nullstiller den aktive kampen.`
   );
@@ -809,6 +933,7 @@ function clearAllHistory() {
   matchFinished = false;
   currentMatchHistoryId = null;
   matchStartTime = null;
+  lastCompletedMatch = null;
 
   localStorage.removeItem("pingscore-match-history");
   localStorage.removeItem("pingscore-current-game");
