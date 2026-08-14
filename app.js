@@ -961,6 +961,68 @@ function closeHistory() {
   );
 }
 
+// =====================================================
+// NULLSTILL ALL HISTORIKK
+// =====================================================
+
+function clearAllHistory() {
+
+  const confirmed =
+    confirm(
+      "Er du sikker? Dette sletter alle lagrede kamper mellom Marius og Petter og nullstiller stillingen."
+    );
+
+
+  if (!confirmed) {
+    return;
+  }
+
+
+  // Slett alle ferdige kamper
+  matchHistory = [];
+
+
+  // Nullstill aktiv kamp
+  score1 = 0;
+  score2 = 0;
+
+  sets1 = 0;
+  sets2 = 0;
+
+  setHistory = [];
+  history = [];
+
+  matchFinished = false;
+
+  currentMatchHistoryId = null;
+
+
+  // Slett lagret data
+  localStorage.removeItem(
+    "pingscore-match-history"
+  );
+
+  localStorage.removeItem(
+    "pingscore-current-game"
+  );
+
+
+  // Oppdater skjermen
+  updateDisplay();
+
+  renderMatchHistory();
+
+
+  setStatus(
+    "Historikken er nullstilt 🏓"
+  );
+
+
+  setListenButton(
+    "🎙️ Start lytting"
+  );
+}
+
 
 // =====================================================
 // SAMME SPILLERPAR?

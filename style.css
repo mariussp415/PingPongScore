@@ -521,3 +521,21 @@ h1 {
 button:active {
   transform: scale(0.97);
 }
+
+.clear-history-button {
+  width: 100%;
+
+  margin: 10px 0 30px;
+
+  padding: 13px;
+
+  border: 1px solid #3a3f47;
+  border-radius: 12px;
+
+  background: transparent;
+  color: white;
+
+  font-size: 13px;
+
+  opacity: 0.65;
+}
