@@ -8,29 +8,179 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="PingScore">
   <title>PingScore</title>
-  <link rel="stylesheet" href="style.css?v=16">
+  <link rel="stylesheet" href="style.css?v=18">
 </head>
 
 <body>
 
   <!-- ==================================================
+       INNLOGGING
+  =================================================== -->
+  <main id="authScreen" class="gate-screen">
+    <div class="gate-card">
+
+      <div class="gate-logo">🏓</div>
+      <h1>PingScore</h1>
+      <p class="gate-subtitle">
+        Logg inn for å synkronisere historikk og statistikk.
+      </p>
+
+      <div class="auth-fields">
+        <input
+          id="authEmail"
+          type="email"
+          inputmode="email"
+          autocomplete="email"
+          placeholder="E-post"
+        >
+
+        <input
+          id="authPassword"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Passord"
+        >
+      </div>
+
+      <button class="primary-button" onclick="signInUser()">
+        Logg inn
+      </button>
+
+      <button class="secondary-button" onclick="signUpUser()">
+        Opprett bruker
+      </button>
+
+      <p id="authStatus" class="gate-status">
+        Kobler til PingScore…
+      </p>
+
+      <p class="gate-help">
+        Første gang? Opprett bruker og bekreft e-posten hvis Supabase ber om det.
+      </p>
+
+    </div>
+  </main>
+
+
+  <!-- ==================================================
+       OPPRETT / BLI MED I RIVALISERING
+  =================================================== -->
+  <main id="rivalryScreen" class="gate-screen hidden">
+
+    <div id="rivalrySetupCard" class="gate-card">
+
+      <div class="gate-logo">⚔️</div>
+      <h1>Lag rivaliseringen</h1>
+      <p class="gate-subtitle">
+        Én av dere oppretter. Den andre blir med med koden.
+      </p>
+
+      <input
+        id="rivalryDisplayName"
+        class="large-input"
+        type="text"
+        maxlength="15"
+        placeholder="Navnet ditt"
+      >
+
+      <button class="primary-button" onclick="createRivalry()">
+        🏓 Opprett rivalisering
+      </button>
+
+      <div class="or-divider">
+        <span></span>
+        <strong>ELLER</strong>
+        <span></span>
+      </div>
+
+      <input
+        id="rivalryInviteInput"
+        class="large-input code-input"
+        type="text"
+        maxlength="6"
+        autocomplete="off"
+        autocapitalize="characters"
+        placeholder="INVITASJONSKODE"
+      >
+
+      <button class="secondary-button" onclick="joinRivalry()">
+        Bli med
+      </button>
+
+      <p id="rivalryStatus" class="gate-status"></p>
+
+      <button class="text-button" onclick="signOutUser()">
+        Logg ut
+      </button>
+
+    </div>
+
+
+    <div id="rivalryWaitingCard" class="gate-card hidden">
+
+      <div class="gate-logo">☁️</div>
+      <h1>Venter på spiller 2</h1>
+
+      <p class="gate-subtitle">
+        Send denne koden til den andre spilleren.
+      </p>
+
+      <div id="waitingInviteCode" class="invite-code-big">
+        ------
+      </div>
+
+      <p class="waiting-note">
+        PingScore sjekker automatisk om den andre har blitt med.
+      </p>
+
+      <button class="primary-button" onclick="refreshRivalryState()">
+        ↻ Sjekk nå
+      </button>
+
+      <button class="text-button" onclick="signOutUser()">
+        Logg ut
+      </button>
+
+    </div>
+
+  </main>
+
+
+  <!-- ==================================================
        HJEM
   =================================================== -->
-  <main id="homeScreen" class="home-screen">
+  <main id="homeScreen" class="home-screen hidden">
+
+    <div class="cloud-bar">
+      <div>
+        <span id="cloudDot" class="cloud-dot online"></span>
+        <span id="cloudStatus">Synkronisert</span>
+      </div>
+
+      <div class="cloud-actions">
+        <button onclick="refreshCloudData()" aria-label="Oppdater">↻</button>
+        <button onclick="signOutUser()">Logg ut</button>
+      </div>
+    </div>
 
     <div class="home-brand">
       <div class="home-logo">🏓</div>
       <h1>PingScore</h1>
-      <p>Hold styr på kampen. Og rivaliseringen.</p>
+      <p id="homeRivalryInfo">Felles statistikk i skyen</p>
     </div>
 
     <section class="home-card">
       <div class="section-label">SPILLERE</div>
 
       <div class="home-name-row">
-        <input id="player1NameInput" type="text" value="Marius" maxlength="15">
+        <input id="player1NameInput" type="text" value="Marius" maxlength="15" readonly>
         <span>VS</span>
-        <input id="player2NameInput" type="text" value="Petter" maxlength="15">
+        <input id="player2NameInput" type="text" value="Petter" maxlength="15" readonly>
+      </div>
+
+      <div class="invite-code-small">
+        Invitasjonskode:
+        <strong id="homeInviteCode">------</strong>
       </div>
     </section>
 
@@ -55,6 +205,10 @@
 
     <button id="startMatchButton" class="primary-button start-match-button" onclick="openMatchSetup()">
       🏓 Start kamp
+    </button>
+
+    <button id="importLegacyButton" class="legacy-import-button hidden" onclick="importLegacyHistory()">
+      📥 Importer gammel lokal historikk
     </button>
 
     <div class="home-nav">
@@ -92,8 +246,6 @@
       </button>
     </header>
 
-
-    <!-- SETT - større og tydeligere -->
     <section class="set-score-card">
       <div class="section-label">SETT</div>
 
@@ -109,20 +261,14 @@
       </div>
     </section>
 
-
-    <!-- SETTKART -->
     <div id="setHistory" class="set-history">
       <span class="history-empty">Ingen sett ferdig ennå</span>
     </div>
 
-
-    <!-- SERVER -->
     <div id="serveBanner" class="serve-banner">
       🏓 Marius server
     </div>
 
-
-    <!-- POENG -->
     <div class="scoreboard">
 
       <div class="player">
@@ -133,14 +279,10 @@
 
         <div id="score1" class="score">0</div>
 
-        <button class="point-button" onclick="addPoint(1)">
-          +
-        </button>
+        <button class="point-button" onclick="addPoint(1)">+</button>
       </div>
 
-
       <div class="divider">–</div>
-
 
       <div class="player">
         <div class="player-name-line">
@@ -150,13 +292,10 @@
 
         <div id="score2" class="score">0</div>
 
-        <button class="point-button" onclick="addPoint(2)">
-          +
-        </button>
+        <button class="point-button" onclick="addPoint(2)">+</button>
       </div>
 
     </div>
-
 
     <button id="listenButton" class="listen-button">
       🎙️ Start lytting
@@ -166,12 +305,10 @@
       Si scoren eller bruk + knappene
     </p>
 
-
     <div class="controls">
       <button onclick="undo()">↶ Angre</button>
       <button onclick="openMatchSetup()">Ny kamp</button>
     </div>
-
 
     <div class="bottom-nav">
       <button onclick="openHistory()">📊 Historikk</button>
@@ -182,7 +319,7 @@
 
 
   <!-- ==================================================
-       START KAMP - 2 STEG
+       START KAMP
   =================================================== -->
   <section id="matchSetup" class="setup-overlay hidden">
 
@@ -196,17 +333,13 @@
         </button>
       </div>
 
-
-      <!-- STEG 1 -->
       <div id="setupStep1" class="setup-step">
 
         <div class="setup-emoji">🏓</div>
 
         <h2>Hvor lang kamp?</h2>
 
-        <p>
-          Første spiller til valgt antall sett vinner.
-        </p>
+        <p>Første spiller til valgt antall sett vinner.</p>
 
         <div class="setup-options">
           <button onclick="chooseSetTarget(3)">
@@ -227,17 +360,13 @@
 
       </div>
 
-
-      <!-- STEG 2 -->
       <div id="setupStep2" class="setup-step hidden">
 
         <div class="setup-emoji">🏓</div>
 
         <h2>Hvem server først?</h2>
 
-        <p>
-          PingScore bytter server automatisk under kampen.
-        </p>
+        <p>PingScore bytter server automatisk under kampen.</p>
 
         <div class="server-options">
 
@@ -271,7 +400,11 @@
 
     <div class="overlay-header">
       <h2>📊 Historikk</h2>
-      <button class="close-button" onclick="closeHistory()">✕</button>
+
+      <div class="overlay-header-actions">
+        <button class="mini-refresh" onclick="refreshHistory()">↻</button>
+        <button class="close-button" onclick="closeHistory()">✕</button>
+      </div>
     </div>
 
     <div class="overall-title">Kamper totalt</div>
@@ -290,9 +423,9 @@
 
     <div id="matchHistoryList" class="match-history-list"></div>
 
-    <button class="clear-history-button" onclick="clearAllHistory()">
-      🗑 Nullstill historikk
-    </button>
+    <p class="cloud-history-note">
+      ☁️ Ferdige kamper synkroniseres mellom begge telefonene.
+    </p>
 
   </section>
 
@@ -304,7 +437,11 @@
 
     <div class="overlay-header">
       <h2>👑 Head to Head</h2>
-      <button class="close-button" onclick="closeHeadToHead()">✕</button>
+
+      <div class="overlay-header-actions">
+        <button class="mini-refresh" onclick="refreshHeadToHead()">↻</button>
+        <button class="close-button" onclick="closeHeadToHead()">✕</button>
+      </div>
     </div>
 
     <div class="h2h-names">
@@ -350,7 +487,10 @@
       </div>
 
       <div class="stat-card full">
-        <span class="stat-label">Siste 10 – fra Marius sitt perspektiv</span>
+        <span id="h2hFormLabel" class="stat-label">
+          Siste 10 – fra Marius sitt perspektiv
+        </span>
+
         <div id="h2hForm" class="form-row">–</div>
       </div>
 
@@ -359,52 +499,58 @@
   </section>
 
 
-  <script src="app.js?v=16"></script>
-
+  <!-- ==================================================
+       VINNER
+  =================================================== -->
   <section id="winnerPopup" class="winner-popup hidden">
 
-  <div class="winner-bg">
-    <span class="rocket r1">🚀</span>
-    <span class="rocket r2">🚀</span>
-    <span class="rocket r3">🚀</span>
-    <span class="rocket r4">🚀</span>
-    <span class="rocket r5">🚀</span>
-    <span class="rocket r6">🚀</span>
-    <span class="rocket r7">🚀</span>
-    <span class="rocket r8">🚀</span>
-  </div>
-
-  <div class="winner-card">
-
-    <div class="winner-small">
-      WOOHOO VINNER
+    <div class="winner-bg">
+      <span class="rocket r1">🚀</span>
+      <span class="rocket r2">🚀</span>
+      <span class="rocket r3">🚀</span>
+      <span class="rocket r4">🚀</span>
+      <span class="rocket r5">🚀</span>
+      <span class="rocket r6">🚀</span>
+      <span class="rocket r7">🚀</span>
+      <span class="rocket r8">🚀</span>
     </div>
 
-    <div id="winnerNamePopup" class="winner-name-popup">
-      MARIUS
+    <div class="winner-card">
+
+      <div class="winner-small">
+        WOOHOO VINNER
+      </div>
+
+      <div id="winnerNamePopup" class="winner-name-popup">
+        MARIUS
+      </div>
+
+      <div id="winnerScorePopup" class="winner-score-popup">
+        5–3 i sett
+      </div>
+
+      <div id="winnerDurationPopup" class="winner-duration-popup">
+        ⏱ 24 min
+      </div>
+
+      <div class="winner-actions">
+        <button class="winner-rematch" onclick="rematchFromPopup()">
+          🔁 Rematch
+        </button>
+
+        <button class="winner-close" onclick="closeWinnerPopup()">
+          Lukk
+        </button>
+      </div>
+
     </div>
 
-    <div id="winnerScorePopup" class="winner-score-popup">
-      5–3 i sett
-    </div>
+  </section>
 
-    <div id="winnerDurationPopup" class="winner-duration-popup">
-      ⏱ 24 min
-    </div>
 
-    <div class="winner-actions">
-      <button class="winner-rematch" onclick="rematchFromPopup()">
-        🔁 Rematch
-      </button>
-
-      <button class="winner-close" onclick="closeWinnerPopup()">
-        Lukk
-      </button>
-    </div>
-
-  </div>
-
-</section>
+  <!-- Supabase JS v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js?v=18"></script>
 
 </body>
 </html>

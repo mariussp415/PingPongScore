@@ -1,6 +1,68 @@
 // =====================================================
-// PINGSCORE v17
+// PINGSCORE v18 - SUPABASE CLOUD
 // =====================================================
+
+// =====================================================
+// SUPABASE / CLOUD
+// =====================================================
+
+const SUPABASE_URL = "https://tyyfootonnhlsmdlqkts.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_57BAgqhUwdyOtVLcr8-lFA_8ki8_gvS";
+const APP_URL = "https://mariussp415.github.io/PingPongScore/";
+
+const supabaseClient =
+  window.supabase?.createClient
+    ? window.supabase.createClient(
+        SUPABASE_URL,
+        SUPABASE_PUBLISHABLE_KEY,
+        {
+          auth: {
+            persistSession: true,
+            autoRefreshToken: true,
+            detectSessionInUrl: true
+          }
+        }
+      )
+    : null;
+
+let currentUser = null;
+let currentRivalryId = null;
+let currentRivalryInviteCode = null;
+
+let rivalryMembers = [];
+let player1UserId = null;
+let player2UserId = null;
+
+let waitingPollTimer = null;
+let cloudBusy = false;
+let authBooted = false;
+
+const CLOUD_OUTBOX_KEY = "pingscore-cloud-outbox-v18";
+const LEGACY_BACKUP_KEY = "pingscore-legacy-history-backup-v18";
+const LEGACY_IMPORT_DONE_KEY = "pingscore-legacy-import-done-v18";
+
+function makeUuid() {
+  if (window.crypto?.randomUUID) {
+    return window.crypto.randomUUID();
+  }
+
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(
+    /[xy]/g,
+    character => {
+      const random = Math.random() * 16 | 0;
+      const value = character === "x"
+        ? random
+        : (random & 0x3) | 0x8;
+
+      return value.toString(16);
+    }
+  );
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    .test(String(value || ""));
+}
 
 let score1 = 0;
 let score2 = 0;
@@ -48,6 +110,26 @@ const matchSetup = document.getElementById("matchSetup");
 const setupStep1 = document.getElementById("setupStep1");
 const setupStep2 = document.getElementById("setupStep2");
 const setupProgress = document.getElementById("setupProgress");
+
+const authScreen = document.getElementById("authScreen");
+const rivalryScreen = document.getElementById("rivalryScreen");
+
+const authEmailInput = document.getElementById("authEmail");
+const authPasswordInput = document.getElementById("authPassword");
+const authStatus = document.getElementById("authStatus");
+
+const rivalrySetupCard = document.getElementById("rivalrySetupCard");
+const rivalryWaitingCard = document.getElementById("rivalryWaitingCard");
+const rivalryDisplayNameInput = document.getElementById("rivalryDisplayName");
+const rivalryInviteInput = document.getElementById("rivalryInviteInput");
+const rivalryStatus = document.getElementById("rivalryStatus");
+const waitingInviteCode = document.getElementById("waitingInviteCode");
+
+const cloudStatus = document.getElementById("cloudStatus");
+const cloudDot = document.getElementById("cloudDot");
+const homeInviteCode = document.getElementById("homeInviteCode");
+const homeRivalryInfo = document.getElementById("homeRivalryInfo");
+const importLegacyButton = document.getElementById("importLegacyButton");
 
 function setStatus(text) {
   if (status) status.textContent = text;
@@ -102,6 +184,13 @@ function updateNames() {
 
   localStorage.setItem("pingscore-player1", player1Name);
   localStorage.setItem("pingscore-player2", player2Name);
+
+  const formLabel = document.getElementById("h2hFormLabel");
+  if (formLabel) {
+    formLabel.textContent =
+      `Siste 10 – fra ${player1Name} sitt perspektiv`;
+  }
+
   saveCurrentGame();
   updateServerIndicator();
 }
@@ -121,6 +210,1227 @@ startingServerSelect?.addEventListener("change", () => {
   saveCurrentGame();
   updateServerIndicator();
 });
+
+
+
+// =====================================================
+// AUTH / RIVALISERING
+// =====================================================
+
+function setGateStatus(element, message, type = "") {
+  if (!element) return;
+
+  element.textContent = message;
+  element.classList.remove("error", "success");
+
+  if (type) {
+    element.classList.add(type);
+  }
+}
+
+function setCloudState(state, text) {
+  if (cloudStatus) {
+    cloudStatus.textContent = text;
+  }
+
+  if (cloudDot) {
+    cloudDot.classList.remove("online", "syncing", "offline");
+    cloudDot.classList.add(state);
+  }
+}
+
+function hidePrimaryScreens() {
+  authScreen?.classList.add("hidden");
+  rivalryScreen?.classList.add("hidden");
+  homeScreen?.classList.add("hidden");
+  matchScreen?.classList.add("hidden");
+
+  document.getElementById("historyScreen")?.classList.add("hidden");
+  document.getElementById("h2hScreen")?.classList.add("hidden");
+  closeWinnerPopup();
+  closeMatchSetup();
+}
+
+function clearWaitingPoll() {
+  if (waitingPollTimer) {
+    clearInterval(waitingPollTimer);
+    waitingPollTimer = null;
+  }
+}
+
+function showAuthScreen(message = "") {
+  clearWaitingPoll();
+  stopVoiceForNavigation();
+
+  hidePrimaryScreens();
+
+  authScreen?.classList.remove("hidden");
+
+  if (message) {
+    setGateStatus(authStatus, message);
+  }
+}
+
+function showRivalrySetup() {
+  clearWaitingPoll();
+  hidePrimaryScreens();
+
+  rivalryScreen?.classList.remove("hidden");
+  rivalrySetupCard?.classList.remove("hidden");
+  rivalryWaitingCard?.classList.add("hidden");
+
+  setGateStatus(rivalryStatus, "");
+
+  if (
+    rivalryDisplayNameInput &&
+    !rivalryDisplayNameInput.value.trim()
+  ) {
+    const fallbackName =
+      currentUser?.user_metadata?.display_name ||
+      localStorage.getItem("pingscore-player1") ||
+      "";
+
+    rivalryDisplayNameInput.value = fallbackName;
+  }
+}
+
+function showRivalryWaiting() {
+  hidePrimaryScreens();
+
+  rivalryScreen?.classList.remove("hidden");
+  rivalrySetupCard?.classList.add("hidden");
+  rivalryWaitingCard?.classList.remove("hidden");
+
+  if (waitingInviteCode) {
+    waitingInviteCode.textContent =
+      currentRivalryInviteCode || "------";
+  }
+
+  clearWaitingPoll();
+
+  waitingPollTimer = setInterval(() => {
+    refreshRivalryState(true);
+  }, 5000);
+}
+
+async function signUpUser() {
+  if (!supabaseClient) {
+    setGateStatus(
+      authStatus,
+      "Supabase-biblioteket kunne ikke lastes.",
+      "error"
+    );
+
+    return;
+  }
+
+  const email = authEmailInput?.value.trim();
+  const password = authPasswordInput?.value || "";
+
+  if (!email || password.length < 6) {
+    setGateStatus(
+      authStatus,
+      "Skriv inn e-post og et passord på minst 6 tegn.",
+      "error"
+    );
+
+    return;
+  }
+
+  setGateStatus(authStatus, "Oppretter bruker…");
+
+  const { data, error } =
+    await supabaseClient.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: APP_URL
+      }
+    });
+
+  if (error) {
+    setGateStatus(
+      authStatus,
+      error.message,
+      "error"
+    );
+
+    return;
+  }
+
+  if (data.session) {
+    setGateStatus(
+      authStatus,
+      "Bruker opprettet ✅",
+      "success"
+    );
+
+    currentUser = data.user;
+    await loadRivalryState();
+    return;
+  }
+
+  setGateStatus(
+    authStatus,
+    "Bruker opprettet ✅ Sjekk e-posten og bekreft kontoen. Deretter kan du logge inn.",
+    "success"
+  );
+}
+
+async function signInUser() {
+  if (!supabaseClient) {
+    setGateStatus(
+      authStatus,
+      "Supabase-biblioteket kunne ikke lastes.",
+      "error"
+    );
+
+    return;
+  }
+
+  const email = authEmailInput?.value.trim();
+  const password = authPasswordInput?.value || "";
+
+  if (!email || !password) {
+    setGateStatus(
+      authStatus,
+      "Skriv inn e-post og passord.",
+      "error"
+    );
+
+    return;
+  }
+
+  setGateStatus(authStatus, "Logger inn…");
+
+  const { data, error } =
+    await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+  if (error) {
+    setGateStatus(
+      authStatus,
+      error.message,
+      "error"
+    );
+
+    return;
+  }
+
+  currentUser = data.user;
+
+  setGateStatus(
+    authStatus,
+    "Innlogget ✅",
+    "success"
+  );
+
+  await loadRivalryState();
+}
+
+async function signOutUser() {
+  clearWaitingPoll();
+  stopVoiceForNavigation();
+
+  currentUser = null;
+  currentRivalryId = null;
+  currentRivalryInviteCode = null;
+
+  rivalryMembers = [];
+  player1UserId = null;
+  player2UserId = null;
+
+  if (supabaseClient) {
+    await supabaseClient.auth.signOut();
+  }
+
+  showAuthScreen("Logget ut.");
+}
+
+async function createRivalry() {
+  if (!supabaseClient || !currentUser) return;
+
+  const displayName =
+    rivalryDisplayNameInput?.value.trim();
+
+  if (!displayName) {
+    setGateStatus(
+      rivalryStatus,
+      "Skriv inn navnet ditt.",
+      "error"
+    );
+
+    return;
+  }
+
+  setGateStatus(
+    rivalryStatus,
+    "Oppretter rivalisering…"
+  );
+
+  const { data, error } =
+    await supabaseClient.rpc(
+      "create_rivalry",
+      {
+        p_display_name: displayName
+      }
+    );
+
+  if (error) {
+    setGateStatus(
+      rivalryStatus,
+      error.message,
+      "error"
+    );
+
+    return;
+  }
+
+  const created =
+    Array.isArray(data)
+      ? data[0]
+      : data;
+
+  currentRivalryId =
+    created?.rivalry_id || null;
+
+  currentRivalryInviteCode =
+    created?.invite_code || null;
+
+  await loadRivalryState();
+}
+
+async function joinRivalry() {
+  if (!supabaseClient || !currentUser) return;
+
+  const displayName =
+    rivalryDisplayNameInput?.value.trim();
+
+  const inviteCode =
+    rivalryInviteInput?.value.trim().toUpperCase();
+
+  if (!displayName || !inviteCode) {
+    setGateStatus(
+      rivalryStatus,
+      "Skriv inn navn og invitasjonskode.",
+      "error"
+    );
+
+    return;
+  }
+
+  setGateStatus(
+    rivalryStatus,
+    "Kobler deg til rivaliseringen…"
+  );
+
+  const { data, error } =
+    await supabaseClient.rpc(
+      "join_rivalry",
+      {
+        p_invite_code: inviteCode,
+        p_display_name: displayName
+      }
+    );
+
+  if (error) {
+    setGateStatus(
+      rivalryStatus,
+      error.message,
+      "error"
+    );
+
+    return;
+  }
+
+  currentRivalryId = data;
+
+  await loadRivalryState();
+}
+
+async function loadRivalryState() {
+  if (!supabaseClient || !currentUser) {
+    showAuthScreen();
+    return;
+  }
+
+  setCloudState(
+    "syncing",
+    "Kobler til skyen…"
+  );
+
+  const {
+    data: memberships,
+    error: membershipError
+  } =
+    await supabaseClient
+      .from("rivalry_members")
+      .select("rivalry_id, display_name, joined_at")
+      .eq("user_id", currentUser.id)
+      .limit(1);
+
+  if (membershipError) {
+    console.error(membershipError);
+
+    setCloudState(
+      "offline",
+      "Kunne ikke koble til"
+    );
+
+    showRivalrySetup();
+
+    setGateStatus(
+      rivalryStatus,
+      membershipError.message,
+      "error"
+    );
+
+    return;
+  }
+
+  if (!memberships?.length) {
+    currentRivalryId = null;
+    currentRivalryInviteCode = null;
+
+    showRivalrySetup();
+    return;
+  }
+
+  currentRivalryId =
+    memberships[0].rivalry_id;
+
+  await loadRivalryDetails();
+}
+
+async function loadRivalryDetails() {
+  if (!supabaseClient || !currentRivalryId) return;
+
+  const [
+    rivalryResult,
+    membersResult
+  ] =
+    await Promise.all([
+      supabaseClient
+        .from("rivalries")
+        .select("id, invite_code, created_at")
+        .eq("id", currentRivalryId)
+        .limit(1),
+
+      supabaseClient
+        .from("rivalry_members")
+        .select("rivalry_id, user_id, display_name, joined_at")
+        .eq("rivalry_id", currentRivalryId)
+        .order("joined_at", { ascending: true })
+    ]);
+
+  if (rivalryResult.error) {
+    console.error(rivalryResult.error);
+    setCloudState("offline", "Synk-feil");
+    return;
+  }
+
+  if (membersResult.error) {
+    console.error(membersResult.error);
+    setCloudState("offline", "Synk-feil");
+    return;
+  }
+
+  currentRivalryInviteCode =
+    rivalryResult.data?.[0]?.invite_code || null;
+
+  rivalryMembers =
+    Array.isArray(membersResult.data)
+      ? membersResult.data
+      : [];
+
+  if (rivalryMembers.length < 2) {
+    showRivalryWaiting();
+    return;
+  }
+
+  clearWaitingPoll();
+
+  player1UserId =
+    rivalryMembers[0].user_id;
+
+  player2UserId =
+    rivalryMembers[1].user_id;
+
+  player1Name =
+    rivalryMembers[0].display_name || "Spiller 1";
+
+  player2Name =
+    rivalryMembers[1].display_name || "Spiller 2";
+
+  if (player1NameInput) {
+    player1NameInput.value = player1Name;
+  }
+
+  if (player2NameInput) {
+    player2NameInput.value = player2Name;
+  }
+
+  updateNames();
+
+  if (homeInviteCode) {
+    homeInviteCode.textContent =
+      currentRivalryInviteCode || "------";
+  }
+
+  if (homeRivalryInfo) {
+    const myName =
+      currentUser.id === player1UserId
+        ? player1Name
+        : player2Name;
+
+    homeRivalryInfo.textContent =
+      `${myName} · felles statistikk i skyen`;
+  }
+
+  backupLegacyHistoryOnce();
+
+  await syncOutbox();
+  await loadCloudMatchHistory({
+    silent: true
+  });
+
+  updateLegacyImportButton();
+
+  setCloudState(
+    "online",
+    "Synkronisert"
+  );
+
+  showHomeScreen();
+}
+
+async function refreshRivalryState(silent = false) {
+  if (!silent) {
+    setCloudState(
+      "syncing",
+      "Oppdaterer…"
+    );
+  }
+
+  await loadRivalryState();
+}
+
+
+// =====================================================
+// CLOUD HISTORY
+// =====================================================
+
+function getOutbox() {
+  try {
+    const parsed =
+      JSON.parse(
+        localStorage.getItem(
+          CLOUD_OUTBOX_KEY
+        ) || "[]"
+      );
+
+    return Array.isArray(parsed)
+      ? parsed
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveOutbox(items) {
+  localStorage.setItem(
+    CLOUD_OUTBOX_KEY,
+    JSON.stringify(items)
+  );
+}
+
+function queueMatchForCloud(match) {
+  const outbox = getOutbox();
+
+  if (
+    !outbox.some(
+      item => item.id === match.id
+    )
+  ) {
+    outbox.push(match);
+  }
+
+  saveOutbox(outbox);
+}
+
+function backupLegacyHistoryOnce() {
+  if (
+    localStorage.getItem(
+      LEGACY_BACKUP_KEY
+    )
+  ) {
+    return;
+  }
+
+  try {
+    const raw =
+      localStorage.getItem(
+        "pingscore-match-history"
+      );
+
+    if (!raw) return;
+
+    const parsed = JSON.parse(raw);
+
+    if (
+      Array.isArray(parsed) &&
+      parsed.length
+    ) {
+      localStorage.setItem(
+        LEGACY_BACKUP_KEY,
+        JSON.stringify(parsed)
+      );
+    }
+  } catch (error) {
+    console.log(
+      "Kunne ikke sikkerhetskopiere lokal historikk:",
+      error
+    );
+  }
+}
+
+function updateLegacyImportButton() {
+  if (!importLegacyButton) return;
+
+  let hasLegacy = false;
+
+  try {
+    const parsed =
+      JSON.parse(
+        localStorage.getItem(
+          LEGACY_BACKUP_KEY
+        ) || "[]"
+      );
+
+    hasLegacy =
+      Array.isArray(parsed) &&
+      parsed.length > 0;
+  } catch {
+    hasLegacy = false;
+  }
+
+  const importDone =
+    localStorage.getItem(
+      LEGACY_IMPORT_DONE_KEY
+    ) === "1";
+
+  importLegacyButton.classList.toggle(
+    "hidden",
+    !hasLegacy || importDone
+  );
+}
+
+function databaseRowToMatch(row) {
+  const winnerSide =
+    row.winner_user_id ===
+    row.player1_user_id
+      ? 1
+      : 2;
+
+  const startingServerSide =
+    row.starting_server_user_id ===
+    row.player2_user_id
+      ? 2
+      : 1;
+
+  return {
+    id: row.id,
+
+    timestamp:
+      new Date(
+        row.played_at
+      ).getTime(),
+
+    startTimestamp:
+      row.duration_ms
+        ? new Date(
+            row.played_at
+          ).getTime() -
+          Number(row.duration_ms)
+        : null,
+
+    durationMs:
+      row.duration_ms != null
+        ? Number(row.duration_ms)
+        : null,
+
+    player1:
+      row.player1_name,
+
+    player2:
+      row.player2_name,
+
+    player1UserId:
+      row.player1_user_id,
+
+    player2UserId:
+      row.player2_user_id,
+
+    winner:
+      winnerSide === 1
+        ? row.player1_name
+        : row.player2_name,
+
+    winnerSide,
+
+    sets1:
+      Number(row.sets1 || 0),
+
+    sets2:
+      Number(row.sets2 || 0),
+
+    setsToWin:
+      Number(row.sets_to_win || 5),
+
+    startingServer:
+      startingServerSide,
+
+    sets:
+      Array.isArray(row.sets)
+        ? row.sets
+        : [],
+
+    createdBy:
+      row.created_by,
+
+    cloudSynced: true
+  };
+}
+
+function matchToDatabaseRow(match) {
+  if (
+    !currentUser ||
+    !currentRivalryId ||
+    !player1UserId ||
+    !player2UserId
+  ) {
+    return null;
+  }
+
+  const winnerSide =
+    match.winnerSide === 2
+      ? 2
+      : 1;
+
+  const serverSide =
+    match.startingServer === 2
+      ? 2
+      : 1;
+
+  const timestamp =
+    match.timestamp ||
+    Date.now();
+
+  return {
+    id:
+      isUuid(match.id)
+        ? match.id
+        : makeUuid(),
+
+    rivalry_id:
+      currentRivalryId,
+
+    created_by:
+      currentUser.id,
+
+    played_at:
+      new Date(
+        timestamp
+      ).toISOString(),
+
+    duration_ms:
+      match.durationMs ?? null,
+
+    sets_to_win:
+      Number(
+        match.setsToWin || 5
+      ),
+
+    starting_server_user_id:
+      serverSide === 1
+        ? player1UserId
+        : player2UserId,
+
+    winner_user_id:
+      winnerSide === 1
+        ? player1UserId
+        : player2UserId,
+
+    player1_user_id:
+      player1UserId,
+
+    player2_user_id:
+      player2UserId,
+
+    player1_name:
+      player1Name,
+
+    player2_name:
+      player2Name,
+
+    sets1:
+      Number(match.sets1 || 0),
+
+    sets2:
+      Number(match.sets2 || 0),
+
+    sets:
+      Array.isArray(match.sets)
+        ? match.sets
+        : []
+  };
+}
+
+async function syncOutbox() {
+  if (
+    !supabaseClient ||
+    !currentUser ||
+    !currentRivalryId ||
+    cloudBusy
+  ) {
+    return;
+  }
+
+  let outbox = getOutbox();
+
+  if (!outbox.length) {
+    return;
+  }
+
+  cloudBusy = true;
+
+  setCloudState(
+    "syncing",
+    "Synkroniserer…"
+  );
+
+  const remaining = [];
+
+  for (const pendingMatch of outbox) {
+    const row =
+      matchToDatabaseRow(
+        pendingMatch
+      );
+
+    if (!row) {
+      remaining.push(
+        pendingMatch
+      );
+
+      continue;
+    }
+
+    const {
+      error
+    } =
+      await supabaseClient
+        .from("matches")
+        .insert(row);
+
+    if (
+      error &&
+      error.code !== "23505"
+    ) {
+      console.error(
+        "Kunne ikke synkronisere kamp:",
+        error
+      );
+
+      remaining.push(
+        pendingMatch
+      );
+    }
+  }
+
+  saveOutbox(remaining);
+
+  cloudBusy = false;
+
+  if (remaining.length) {
+    setCloudState(
+      "offline",
+      `${remaining.length} kamp venter på synk`
+    );
+  } else {
+    setCloudState(
+      "online",
+      "Synkronisert"
+    );
+  }
+}
+
+async function loadCloudMatchHistory(
+  { silent = false } = {}
+) {
+  if (
+    !supabaseClient ||
+    !currentRivalryId
+  ) {
+    return false;
+  }
+
+  if (!silent) {
+    setCloudState(
+      "syncing",
+      "Oppdaterer…"
+    );
+  }
+
+  const {
+    data,
+    error
+  } =
+    await supabaseClient
+      .from("matches")
+      .select("*")
+      .eq(
+        "rivalry_id",
+        currentRivalryId
+      )
+      .order(
+        "played_at",
+        { ascending: true }
+      );
+
+  if (error) {
+    console.error(
+      "Kunne ikke hente kamper:",
+      error
+    );
+
+    setCloudState(
+      "offline",
+      "Kunne ikke oppdatere"
+    );
+
+    return false;
+  }
+
+  const cloudMatches =
+    (data || []).map(
+      databaseRowToMatch
+    );
+
+  const pending = getOutbox();
+
+  const knownIds =
+    new Set(
+      cloudMatches.map(
+        match => match.id
+      )
+    );
+
+  const pendingOnly =
+    pending.filter(
+      match =>
+        !knownIds.has(match.id)
+    );
+
+  matchHistory = [
+    ...cloudMatches,
+    ...pendingOnly
+  ];
+
+  matchHistory.sort(
+    (a, b) =>
+      Number(a.timestamp || 0) -
+      Number(b.timestamp || 0)
+  );
+
+  saveMatchHistory();
+
+  setCloudState(
+    pendingOnly.length
+      ? "syncing"
+      : "online",
+    pendingOnly.length
+      ? `${pendingOnly.length} kamp venter på synk`
+      : "Synkronisert"
+  );
+
+  return true;
+}
+
+async function refreshCloudData() {
+  if (!currentRivalryId) return;
+
+  setCloudState(
+    "syncing",
+    "Oppdaterer…"
+  );
+
+  await syncOutbox();
+  await loadRivalryDetails();
+
+  renderMatchHistory();
+  renderHeadToHead();
+  updateHomeScreen();
+}
+
+async function refreshHistory() {
+  await syncOutbox();
+  await loadCloudMatchHistory();
+
+  renderMatchHistory();
+}
+
+async function refreshHeadToHead() {
+  await syncOutbox();
+  await loadCloudMatchHistory();
+
+  renderHeadToHead();
+}
+
+async function deleteCloudMatch(matchId) {
+  if (
+    !supabaseClient ||
+    !currentRivalryId ||
+    !matchId
+  ) {
+    return;
+  }
+
+  const outbox =
+    getOutbox().filter(
+      match =>
+        match.id !== matchId
+    );
+
+  saveOutbox(outbox);
+
+  if (!isUuid(matchId)) {
+    return;
+  }
+
+  const {
+    error
+  } =
+    await supabaseClient
+      .from("matches")
+      .delete()
+      .eq("id", matchId)
+      .eq(
+        "rivalry_id",
+        currentRivalryId
+      );
+
+  if (error) {
+    console.error(
+      "Kunne ikke fjerne kamp fra skyen:",
+      error
+    );
+  }
+}
+
+async function importLegacyHistory() {
+  if (
+    !currentRivalryId ||
+    !player1UserId ||
+    !player2UserId
+  ) {
+    return;
+  }
+
+  let legacy = [];
+
+  try {
+    legacy =
+      JSON.parse(
+        localStorage.getItem(
+          LEGACY_BACKUP_KEY
+        ) || "[]"
+      );
+  } catch {
+    legacy = [];
+  }
+
+  if (
+    !Array.isArray(legacy) ||
+    !legacy.length
+  ) {
+    updateLegacyImportButton();
+    return;
+  }
+
+  const confirmed =
+    confirm(
+      `Importere ${legacy.length} gamle lokale kamper til den felles PingScore-historikken?`
+    );
+
+  if (!confirmed) return;
+
+  setCloudState(
+    "syncing",
+    "Importerer gammel historikk…"
+  );
+
+  const rows = legacy.map(match => {
+    let winnerSide =
+      Number(match.winnerSide);
+
+    if (
+      winnerSide !== 1 &&
+      winnerSide !== 2
+    ) {
+      winnerSide =
+        normalizeName(match.winner) ===
+        normalizeName(player2Name)
+          ? 2
+          : 1;
+    }
+
+    const normalized = {
+      ...match,
+      id:
+        isUuid(match.id)
+          ? match.id
+          : makeUuid(),
+
+      winnerSide,
+
+      player1:
+        player1Name,
+
+      player2:
+        player2Name
+    };
+
+    return matchToDatabaseRow(
+      normalized
+    );
+  }).filter(Boolean);
+
+  if (!rows.length) return;
+
+  const {
+    error
+  } =
+    await supabaseClient
+      .from("matches")
+      .insert(rows);
+
+  if (error) {
+    console.error(error);
+
+    setCloudState(
+      "offline",
+      "Import feilet"
+    );
+
+    alert(
+      `Kunne ikke importere: ${error.message}`
+    );
+
+    return;
+  }
+
+  localStorage.setItem(
+    LEGACY_IMPORT_DONE_KEY,
+    "1"
+  );
+
+  updateLegacyImportButton();
+
+  await loadCloudMatchHistory();
+
+  renderMatchHistory();
+  renderHeadToHead();
+
+  alert(
+    "Den gamle historikken er nå lagret i skyen ✅"
+  );
+}
+
+
+// =====================================================
+// STARTUP
+// =====================================================
+
+async function bootCloudApp() {
+  if (authBooted) return;
+  authBooted = true;
+
+  if (!supabaseClient) {
+    showAuthScreen(
+      "Kunne ikke laste Supabase. Sjekk internettforbindelsen og prøv igjen."
+    );
+
+    return;
+  }
+
+  setGateStatus(
+    authStatus,
+    "Sjekker innlogging…"
+  );
+
+  const {
+    data,
+    error
+  } =
+    await supabaseClient.auth.getSession();
+
+  if (error) {
+    console.error(error);
+    showAuthScreen(
+      "Kunne ikke hente innlogging."
+    );
+
+    return;
+  }
+
+  currentUser =
+    data.session?.user || null;
+
+  if (currentUser) {
+    await loadRivalryState();
+  } else {
+    showAuthScreen("");
+  }
+
+  supabaseClient.auth.onAuthStateChange(
+    (event, session) => {
+      if (
+        event === "SIGNED_OUT"
+      ) {
+        currentUser = null;
+
+        if (
+          !authScreen?.classList.contains(
+            "hidden"
+          )
+        ) {
+          return;
+        }
+
+        showAuthScreen("Logget ut.");
+        return;
+      }
+
+      if (
+        session?.user &&
+        (
+          !currentUser ||
+          currentUser.id !==
+          session.user.id
+        )
+      ) {
+        currentUser =
+          session.user;
+
+        setTimeout(() => {
+          loadRivalryState();
+        }, 0);
+      }
+    }
+  );
+}
 
 
 function hasActiveMatch() {
@@ -187,6 +1497,9 @@ function stopVoiceForNavigation() {
 function showHomeScreen() {
   stopVoiceForNavigation();
 
+  authScreen?.classList.add("hidden");
+  rivalryScreen?.classList.add("hidden");
+
   homeScreen?.classList.remove("hidden");
   matchScreen?.classList.add("hidden");
 
@@ -194,6 +1507,9 @@ function showHomeScreen() {
 }
 
 function showMatchScreen() {
+  authScreen?.classList.add("hidden");
+  rivalryScreen?.classList.add("hidden");
+
   homeScreen?.classList.add("hidden");
   matchScreen?.classList.remove("hidden");
 
@@ -535,8 +1851,7 @@ function endMatch(player) {
       ? now - matchStartTime
       : null;
 
-  const matchId =
-    `${now}-${Math.random().toString(36).slice(2, 8)}`;
+  const matchId = makeUuid();
 
   currentMatchHistoryId = matchId;
 
@@ -549,6 +1864,9 @@ function endMatch(player) {
     player1: player1Name,
     player2: player2Name,
 
+    player1UserId,
+    player2UserId,
+
     winner: winnerName,
     winnerSide: player,
 
@@ -557,15 +1875,27 @@ function endMatch(player) {
     setsToWin,
     startingServer,
 
-    sets: setHistory.map(set => ({ ...set }))
+    sets:
+      setHistory.map(
+        set => ({ ...set })
+      ),
+
+    cloudSynced: false
   };
 
-  lastCompletedMatch = completedMatch;
+  lastCompletedMatch =
+    completedMatch;
 
-  matchHistory.push(completedMatch);
+  matchHistory.push(
+    completedMatch
+  );
 
   saveMatchHistory();
   saveCurrentGame();
+
+  queueMatchForCloud(
+    completedMatch
+  );
 
   renderMatchHistory();
   renderHeadToHead();
@@ -578,7 +1908,10 @@ function endMatch(player) {
   listening = false;
   clearRestartTimer();
 
-  if (recognition && recognitionRunning) {
+  if (
+    recognition &&
+    recognitionRunning
+  ) {
     try {
       recognition.stop();
     } catch (error) {
@@ -586,13 +1919,33 @@ function endMatch(player) {
     }
   }
 
-  setListenButton("🏆 Kamp ferdig");
+  setListenButton(
+    "🏆 Kamp ferdig"
+  );
+
   updateServerIndicator();
 
-  // Litt forsinkelse gjør at siste poeng/settskifte rekker å vises
-  // før vinnerkortet kommer opp.
+  syncOutbox()
+    .then(() =>
+      loadCloudMatchHistory({
+        silent: true
+      })
+    )
+    .then(() => {
+      renderMatchHistory();
+      renderHeadToHead();
+    })
+    .catch(error => {
+      console.error(
+        "Bakgrunnssynk feilet:",
+        error
+      );
+    });
+
   setTimeout(() => {
-    showWinnerPopup(completedMatch);
+    showWinnerPopup(
+      completedMatch
+    );
   }, 450);
 }
 
@@ -605,8 +1958,21 @@ function undo() {
   }
 
   if (matchFinished && currentMatchHistoryId) {
-    matchHistory = matchHistory.filter(match => match.id !== currentMatchHistoryId);
+    const matchIdToDelete =
+      currentMatchHistoryId;
+
+    matchHistory =
+      matchHistory.filter(
+        match =>
+          match.id !== matchIdToDelete
+      );
+
     saveMatchHistory();
+
+    deleteCloudMatch(
+      matchIdToDelete
+    );
+
     currentMatchHistoryId = null;
     lastCompletedMatch = null;
   }
@@ -651,18 +2017,38 @@ function resetGame() {
   updateHomeScreen();
 }
 
-function openHistory() {
+async function openHistory() {
   renderMatchHistory();
-  document.getElementById("historyScreen")?.classList.remove("hidden");
+
+  document
+    .getElementById("historyScreen")
+    ?.classList.remove("hidden");
+
+  await syncOutbox();
+  await loadCloudMatchHistory({
+    silent: true
+  });
+
+  renderMatchHistory();
 }
 
 function closeHistory() {
   document.getElementById("historyScreen")?.classList.add("hidden");
 }
 
-function openHeadToHead() {
+async function openHeadToHead() {
   renderHeadToHead();
-  document.getElementById("h2hScreen")?.classList.remove("hidden");
+
+  document
+    .getElementById("h2hScreen")
+    ?.classList.remove("hidden");
+
+  await syncOutbox();
+  await loadCloudMatchHistory({
+    silent: true
+  });
+
+  renderHeadToHead();
 }
 
 function closeHeadToHead() {
@@ -772,7 +2158,13 @@ function getMatchPerspective(match) {
 }
 
 function getRelevantMatches() {
-  return matchHistory.filter(samePlayerPair);
+  if (currentRivalryId) {
+    return matchHistory;
+  }
+
+  return matchHistory.filter(
+    samePlayerPair
+  );
 }
 
 function renderMatchHistory() {
@@ -915,35 +2307,54 @@ function renderHeadToHead() {
   }
 }
 
-function clearAllHistory() {
-  closeWinnerPopup();
+async function clearAllHistory() {
+  const confirmed =
+    confirm(
+      "Vil du slette kampene du selv har registrert fra den felles historikken? Dette kan ikke angres."
+    );
 
-  const confirmed = confirm(
-    `Er du sikker? Dette sletter all lagret historikk mellom ${player1Name} og ${player2Name} og nullstiller den aktive kampen.`
-  );
   if (!confirmed) return;
 
-  matchHistory = [];
-  score1 = 0;
-  score2 = 0;
-  sets1 = 0;
-  sets2 = 0;
-  setHistory = [];
-  history = [];
-  matchFinished = false;
-  currentMatchHistoryId = null;
-  matchStartTime = null;
-  lastCompletedMatch = null;
+  if (
+    supabaseClient &&
+    currentRivalryId &&
+    currentUser
+  ) {
+    const { error } =
+      await supabaseClient
+        .from("matches")
+        .delete()
+        .eq(
+          "rivalry_id",
+          currentRivalryId
+        )
+        .eq(
+          "created_by",
+          currentUser.id
+        );
 
-  localStorage.removeItem("pingscore-match-history");
-  localStorage.removeItem("pingscore-current-game");
+    if (error) {
+      alert(
+        `Kunne ikke slette: ${error.message}`
+      );
 
-  updateDisplay();
+      return;
+    }
+  }
+
+  saveOutbox([]);
+
+  await loadCloudMatchHistory({
+    silent: true
+  });
+
+  resetGame();
   renderMatchHistory();
   renderHeadToHead();
-  setStatus("Historikken er nullstilt 🏓");
-  setListenButton("🎙️ Start lytting");
-  updateHomeScreen();
+
+  setStatus(
+    "Dine registrerte kamper er slettet."
+  );
 }
 
 // =====================================================
@@ -1244,28 +2655,80 @@ document.addEventListener("visibilitychange", () => {
 });
 
 // =====================================================
-// LAST INN ALT
+// LAST INN LOKAL TILSTAND + START CLOUD
 // =====================================================
 
 loadMatchHistory();
 loadCurrentGame();
 
-const storedPlayer1 = localStorage.getItem("pingscore-player1");
-const storedPlayer2 = localStorage.getItem("pingscore-player2");
-const storedSets = localStorage.getItem("pingscore-sets-to-win");
-const storedStartingServer = localStorage.getItem("pingscore-starting-server");
+const storedPlayer1 =
+  localStorage.getItem(
+    "pingscore-player1"
+  );
 
-if (!matchStartTime && !score1 && !score2 && !setHistory.length) {
-  if (storedPlayer1) player1Name = storedPlayer1;
-  if (storedPlayer2) player2Name = storedPlayer2;
-  if (storedSets) setsToWin = Number(storedSets) || 5;
-  if (storedStartingServer) startingServer = Number(storedStartingServer) === 2 ? 2 : 1;
+const storedPlayer2 =
+  localStorage.getItem(
+    "pingscore-player2"
+  );
+
+const storedSets =
+  localStorage.getItem(
+    "pingscore-sets-to-win"
+  );
+
+const storedStartingServer =
+  localStorage.getItem(
+    "pingscore-starting-server"
+  );
+
+if (
+  !matchStartTime &&
+  !score1 &&
+  !score2 &&
+  !setHistory.length
+) {
+  if (storedPlayer1) {
+    player1Name =
+      storedPlayer1;
+  }
+
+  if (storedPlayer2) {
+    player2Name =
+      storedPlayer2;
+  }
+
+  if (storedSets) {
+    setsToWin =
+      Number(storedSets) || 5;
+  }
+
+  if (storedStartingServer) {
+    startingServer =
+      Number(storedStartingServer) === 2
+        ? 2
+        : 1;
+  }
 }
 
-if (player1NameInput) player1NameInput.value = player1Name;
-if (player2NameInput) player2NameInput.value = player2Name;
-if (setsToWinSelect) setsToWinSelect.value = String(setsToWin);
-if (startingServerSelect) startingServerSelect.value = String(startingServer);
+if (player1NameInput) {
+  player1NameInput.value =
+    player1Name;
+}
+
+if (player2NameInput) {
+  player2NameInput.value =
+    player2Name;
+}
+
+if (setsToWinSelect) {
+  setsToWinSelect.value =
+    String(setsToWin);
+}
+
+if (startingServerSelect) {
+  startingServerSelect.value =
+    String(startingServer);
+}
 
 updateNames();
 updateDisplay();
@@ -1273,8 +2736,16 @@ renderMatchHistory();
 renderHeadToHead();
 updateHomeScreen();
 
-// Forsiden vises alltid når PingScore åpnes.
-// En pågående kamp kan fortsettes med ett trykk.
-showHomeScreen();
+if (matchFinished) {
+  setListenButton(
+    "🏆 Kamp ferdig"
+  );
+}
 
-if (matchFinished) setListenButton("🏆 Kamp ferdig");
+// Ikke vis lokal forside før vi vet hvem som er logget inn.
+homeScreen?.classList.add("hidden");
+matchScreen?.classList.add("hidden");
+rivalryScreen?.classList.add("hidden");
+authScreen?.classList.remove("hidden");
+
+bootCloudApp();
