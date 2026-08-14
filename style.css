@@ -410,15 +410,19 @@ button {
 }
 
 .point-button {
-  width: 72px;
-  height: 42px;
-  margin-top: 10px;
+  width: 110px;
+  height: 64px;
+  margin-top: 12px;
   border: 0;
-  border-radius: 13px;
+  border-radius: 16px;
   background: var(--card-2);
   color: white;
-  font-size: 25px;
+  font-size: 34px;
   font-weight: 800;
+}
+
+.point-button:active {
+  transform: scale(0.97);
 }
 
 .listen-button {
