@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="PingScore">
   <title>PingScore</title>
-  <link rel="stylesheet" href="style.css?v=19">
+  <link rel="stylesheet" href="style.css?v=21">
 </head>
 
 <body>
@@ -271,28 +271,24 @@
 
     <div class="scoreboard">
 
-      <div class="player">
+      <div class="player tappable-player" onclick="addPoint(1)" role="button" aria-label="Poeng til Marius">
         <div class="player-name-line">
           <p id="scorePlayer1Name">Marius</p>
           <span id="server1" class="server-indicator">SERVER</span>
         </div>
 
         <div id="score1" class="score">0</div>
-
-        <button class="point-button" onclick="addPoint(1)">+</button>
       </div>
 
       <div class="divider">–</div>
 
-      <div class="player">
+      <div class="player tappable-player" onclick="addPoint(2)" role="button" aria-label="Poeng til Petter">
         <div class="player-name-line">
           <span id="server2" class="server-indicator">SERVER</span>
           <p id="scorePlayer2Name">Petter</p>
         </div>
 
         <div id="score2" class="score">0</div>
-
-        <button class="point-button" onclick="addPoint(2)">+</button>
       </div>
 
     </div>
@@ -550,7 +546,7 @@
 
   <!-- Supabase JS v2 -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=19"></script>
+  <script src="app.js?v=21"></script>
 
 </body>
 </html>

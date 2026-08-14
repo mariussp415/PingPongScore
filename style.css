@@ -410,19 +410,15 @@ button {
 }
 
 .point-button {
-  width: 110px;
-  height: 64px;
-  margin-top: 12px;
+  width: 72px;
+  height: 42px;
+  margin-top: 10px;
   border: 0;
-  border-radius: 16px;
+  border-radius: 13px;
   background: var(--card-2);
   color: white;
-  font-size: 34px;
+  font-size: 25px;
   font-weight: 800;
-}
-
-.point-button:active {
-  transform: scale(0.97);
 }
 
 .listen-button {
@@ -1365,4 +1361,90 @@ button:active {
 
 .delete-match-button:active {
   background: rgba(255,255,255,0.06);
+}
+
+
+/* ==================================================
+   PINGSCORE v20 - HELE SPILLERSIDEN ER TRYKKBAR
+================================================== */
+
+.tappable-player {
+  align-self: stretch;
+  min-height: 100%;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+
+  padding: 10px 6px;
+  border-radius: 18px;
+
+  user-select: none;
+  -webkit-user-select: none;
+
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+
+  transition:
+    transform 0.08s ease,
+    background 0.08s ease;
+}
+
+.tappable-player:active {
+  transform: scale(0.985);
+  background: rgba(255,255,255,0.055);
+}
+
+.point-hint {
+  width: 108px;
+  height: 54px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  margin-top: 12px;
+
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 15px;
+
+  background: rgba(255,255,255,0.055);
+  color: rgba(255,255,255,0.72);
+
+  font-size: 30px;
+  font-weight: 800;
+
+  pointer-events: none;
+}
+
+@media (max-height: 700px) {
+  .tappable-player {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .point-hint {
+    width: 96px;
+    height: 44px;
+    margin-top: 7px;
+    font-size: 26px;
+  }
+}
+
+
+/* ==================================================
+   PINGSCORE v21 - RENT SCOREOMRÅDE UTEN PLUSSKNAPP
+================================================== */
+
+.tappable-player {
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+@media (max-height: 700px) {
+  .tappable-player {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
 }
