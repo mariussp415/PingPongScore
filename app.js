@@ -1,5 +1,5 @@
 // =====================================================
-// PINGSCORE v18 - SUPABASE CLOUD
+// PINGSCORE v19 - DELETE INDIVIDUAL MATCH
 // =====================================================
 
 // =====================================================
@@ -1194,9 +1194,10 @@ async function deleteCloudMatch(matchId) {
     !currentRivalryId ||
     !matchId
   ) {
-    return;
+    return false;
   }
 
+  // Fjern også fra lokal synk-kø hvis kampen ikke rakk å nå skyen.
   const outbox =
     getOutbox().filter(
       match =>
@@ -1206,7 +1207,7 @@ async function deleteCloudMatch(matchId) {
   saveOutbox(outbox);
 
   if (!isUuid(matchId)) {
-    return;
+    return true;
   }
 
   const {
@@ -1226,7 +1227,98 @@ async function deleteCloudMatch(matchId) {
       "Kunne ikke fjerne kamp fra skyen:",
       error
     );
+
+    return false;
   }
+
+  return true;
+}
+
+async function deleteMatchFromHistory(matchId) {
+  const match =
+    matchHistory.find(
+      item =>
+        item.id === matchId
+    );
+
+  if (!match) return;
+
+  // RLS-regelen vår tillater bare at personen som registrerte kampen
+  // sletter den. Derfor vises knappen bare på egne kamper.
+  if (
+    match.createdBy &&
+    currentUser &&
+    match.createdBy !== currentUser.id
+  ) {
+    alert(
+      "Denne kampen ble registrert av den andre spilleren og kan ikke slettes fra din konto."
+    );
+
+    return;
+  }
+
+  const perspective =
+    getMatchPerspective(match);
+
+  const confirmed =
+    confirm(
+      `Slette kampen ${player1Name} ${perspective.sets1}–${perspective.sets2} ${player2Name}?`
+    );
+
+  if (!confirmed) return;
+
+  setCloudState(
+    "syncing",
+    "Sletter kamp…"
+  );
+
+  const deleted =
+    await deleteCloudMatch(
+      matchId
+    );
+
+  if (!deleted) {
+    setCloudState(
+      "offline",
+      "Kunne ikke slette"
+    );
+
+    alert(
+      "Kunne ikke slette kampen. Prøv igjen."
+    );
+
+    return;
+  }
+
+  matchHistory =
+    matchHistory.filter(
+      item =>
+        item.id !== matchId
+    );
+
+  if (
+    currentMatchHistoryId === matchId
+  ) {
+    currentMatchHistoryId = null;
+    lastCompletedMatch = null;
+    saveCurrentGame();
+  }
+
+  saveMatchHistory();
+
+  // Hent fasiten fra Supabase igjen slik at begge enheter får samme resultat.
+  await loadCloudMatchHistory({
+    silent: true
+  });
+
+  renderMatchHistory();
+  renderHeadToHead();
+  updateHomeScreen();
+
+  setCloudState(
+    "online",
+    "Synkronisert"
+  );
 }
 
 async function importLegacyHistory() {
@@ -2231,6 +2323,20 @@ function renderMatchHistory() {
         </div>
         <div class="match-winner">🏆 ${winnerName}</div>
         <div class="match-sets">${setsText || "Ingen settdetaljer"}</div>
+
+        ${
+          !match.createdBy ||
+          match.createdBy === currentUser?.id
+            ? `
+              <button
+                class="delete-match-button"
+                onclick="deleteMatchFromHistory('${match.id}')"
+              >
+                🗑 Slett kamp
+              </button>
+            `
+            : ""
+        }
       `;
       list.appendChild(card);
     });
