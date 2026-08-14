@@ -19,7 +19,7 @@
 
   <title>PingScore</title>
 
-  <link rel="stylesheet" href="style.css?v=10">
+  <link rel="stylesheet" href="style.css?v=13">
 </head>
 
 <body>
@@ -41,7 +41,7 @@
     </header>
 
 
-    <!-- SPILLERNAVN -->
+    <!-- NAVN -->
     <div class="name-row">
 
       <input
@@ -65,19 +65,29 @@
 
     <!-- SETT -->
     <div class="sets">
-      <span id="player1Label">Marius</span>
 
-      <strong id="sets1">0</strong>
+      <span id="player1Label">
+        Marius
+      </span>
+
+      <strong id="sets1">
+        0
+      </strong>
 
       <span>–</span>
 
-      <strong id="sets2">0</strong>
+      <strong id="sets2">
+        0
+      </strong>
 
-      <span id="player2Label">Petter</span>
+      <span id="player2Label">
+        Petter
+      </span>
+
     </div>
 
 
-    <!-- SETTHISTORIKK -->
+    <!-- SETTHISTORIKK I AKTIV KAMP -->
     <div
       id="setHistory"
       class="set-history"
@@ -154,10 +164,11 @@
 
 
     <p id="status">
-      Si scoren, f.eks. «tre to»
+      Si scoren eller bruk + knappene
     </p>
 
 
+    <!-- KONTROLLER -->
     <div class="controls">
 
       <button onclick="undo()">
@@ -170,10 +181,90 @@
 
     </div>
 
+
+    <!-- HISTORIKK -->
+    <button
+      id="historyButton"
+      class="history-button"
+      onclick="openHistory()"
+    >
+      📊 Historikk
+    </button>
+
   </main>
 
 
-<script src="app.js?v=12"></script>
+  <!-- ===============================
+       HISTORIKK-VISNING
+  ================================ -->
+
+  <section
+    id="historyScreen"
+    class="history-screen hidden"
+  >
+
+    <div class="history-header">
+
+      <h2>📊 Historikk</h2>
+
+      <button
+        class="close-history"
+        onclick="closeHistory()"
+      >
+        ✕
+      </button>
+
+    </div>
+
+
+    <div class="overall-title">
+      Kamper totalt
+    </div>
+
+
+    <div class="overall-names">
+
+      <span id="historyPlayer1Name">
+        Marius
+      </span>
+
+      <span></span>
+
+      <span id="historyPlayer2Name">
+        Petter
+      </span>
+
+    </div>
+
+
+    <!-- STORE TOTALSCOREN -->
+    <div class="overall-score">
+
+      <span id="overallWins1">
+        0
+      </span>
+
+      <span class="overall-divider">
+        –
+      </span>
+
+      <span id="overallWins2">
+        0
+      </span>
+
+    </div>
+
+
+    <div
+      id="matchHistoryList"
+      class="match-history-list"
+    >
+    </div>
+
+  </section>
+
+
+  <script src="app.js?v=13"></script>
 
 </body>
 </html>
